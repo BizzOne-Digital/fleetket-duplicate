@@ -14,13 +14,24 @@ declare global {
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/**
+ * Scroll to an in-page target, landing exactly where its CSS `scroll-margin-top` says (e.g. `scroll-mt-28`),
+ * so every anchor clears the fixed header by the same, single offset.
+ */
+export function scrollToElement(el: HTMLElement) {
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0
+  const top = el.getBoundingClientRect().top + window.scrollY - margin
+  if (window.fkLenis) window.fkLenis.scrollTo(top, { duration: 1.1 })
+  else window.scrollTo({ top, behavior: reducedMotion() ? 'auto' : 'smooth' })
+}
+
 /** Inertial smooth scrolling for the public site. Off for reduced-motion users and on touch devices (native is better there). */
 export function SmoothScroll() {
   const pathname = usePathname()
 
   useEffect(() => {
     if (reducedMotion()) return
-    const lenis = new Lenis({ duration: 1.1, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), anchors: { offset: -88 } })
+    const lenis = new Lenis({ duration: 1.1, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
     window.fkLenis = lenis
     let raf = requestAnimationFrame(function loop(t) {
       lenis.raf(t)
@@ -31,6 +42,24 @@ export function SmoothScroll() {
       lenis.destroy()
       window.fkLenis = undefined
     }
+  }, [])
+
+  // Same-page hash links glide to their target and respect its scroll margin (works with or without Lenis).
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const a = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href*="#"]')
+      if (!a) return
+      const url = new URL(a.href, location.href)
+      if (url.pathname !== location.pathname || !url.hash) return
+      const el = document.getElementById(decodeURIComponent(url.hash.slice(1)))
+      if (!el) return
+      e.preventDefault()
+      history.replaceState(null, '', url.hash)
+      scrollToElement(el)
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
   }, [])
 
   // New page → start at the top immediately rather than gliding from the old position.
