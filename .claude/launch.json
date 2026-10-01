@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "fleeket", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "dev"], "port": 3000, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } }
+  ]
+}
