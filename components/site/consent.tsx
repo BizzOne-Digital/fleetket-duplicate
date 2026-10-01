@@ -15,6 +15,10 @@ import { cn } from '@/lib/utils'
  */
 const TERMS_VERSION = '2026-03-17'
 
+// TEMPORARILY DISABLED: the first-visit Privacy Policy / Terms agreement pop-up.
+// Set back to `true` to show it again — nothing else needs to change.
+const TERMS_GATE_ENABLED = false
+
 type Consent = { v: 2; terms: string; agreedAt: string; analytics: boolean; marketing: boolean }
 const KEY = 'fk-consent'
 const OPEN_EVENT = 'fk:open-consent'
@@ -77,8 +81,8 @@ export function ConsentManager({ gaId }: { gaId?: string }) {
     setReady(true)
     const reopen = () => {
       const c = readConsent()
-      if (!c) return setWelcome(true)
-      setDraft({ analytics: c.analytics, marketing: c.marketing })
+      if (!c && TERMS_GATE_ENABLED) return setWelcome(true)
+      setDraft({ analytics: c?.analytics ?? false, marketing: c?.marketing ?? false })
       setPrefs(true)
     }
     window.addEventListener(OPEN_EVENT, reopen)
@@ -87,7 +91,7 @@ export function ConsentManager({ gaId }: { gaId?: string }) {
 
   // Ask on every page until agreed — except the legal pages, which must stay readable.
   useEffect(() => {
-    if (!ready || consent || LEGAL_PATHS.includes(pathname)) return setWelcome(false)
+    if (!TERMS_GATE_ENABLED || !ready || consent || LEGAL_PATHS.includes(pathname)) return setWelcome(false)
     // Let the launch splash finish first when it is playing.
     const splash = !document.documentElement.classList.contains('splash-seen') && document.querySelector('.splash')
     const t = setTimeout(() => setWelcome(true), splash ? 2600 : 500)
