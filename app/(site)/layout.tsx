@@ -1,8 +1,7 @@
-import { Header } from '@/components/site/header'
-import { Footer } from '@/components/site/footer'
+import { LiveHeader } from '@/components/live/header'
+import { LiveFooter } from '@/components/live/footer'
 import { ConsentManager } from '@/components/site/consent'
 import { JsonLd } from '@/components/site/json-ld'
-import { CursorHalo, SmoothScroll } from '@/components/site/experience'
 import { getContent } from '@/lib/content'
 import { absoluteUrl } from '@/lib/seo'
 
@@ -40,18 +39,16 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             publisher: { '@id': absoluteUrl('/#organization') },
             potentialAction: {
               '@type': 'SearchAction',
-              target: { '@type': 'EntryPoint', urlTemplate: `${absoluteUrl('/services')}?q={search_term_string}` },
+              target: { '@type': 'EntryPoint', urlTemplate: `${absoluteUrl('/search')}?q={search_term_string}` },
               'query-input': 'required name=search_term_string',
             },
           },
         ]}
       />
-      <Header email={site.contactEmail} />
-      <main id="main">{children}</main>
-      <Footer />
+      <LiveHeader />
+      <main id="main" className="pt-[var(--header-h)]">{children}</main>
+      <LiveFooter />
       <ConsentManager gaId={process.env.NEXT_PUBLIC_GA_ID} />
-      <SmoothScroll />
-      <CursorHalo />
     </>
   )
 }

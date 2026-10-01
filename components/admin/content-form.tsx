@@ -6,8 +6,9 @@ import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImageField } from '@/components/admin/image-field'
+import { LocationField } from '@/components/admin/location-field'
 import { adminInput } from '@/components/admin/ui'
-import { emptyValueFor, type FieldSpec } from '@/lib/fields'
+import { emptyValueFor, type FieldSpec, type LatLng } from '@/lib/fields'
 import type { UploadFolder } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -78,6 +79,19 @@ function FieldInput({ field, value, onChange, path, errors, folder }: { field: F
           {field.label}
         </label>
       )
+    case 'reference':
+      return (
+        <div className="grid gap-2">
+          <Label htmlFor={id} help={field.help}>{field.label}</Label>
+          <select id={id} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} aria-invalid={!!err} className={cn(adminInput, 'cursor-pointer', err && 'border-danger')}>
+            <option value="">{field.emptyLabel ?? 'None'}</option>
+            {(field.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {errorEl}
+        </div>
+      )
+    case 'location':
+      return <LocationField label={field.label} help={field.help} value={(value as LatLng | null) ?? null} onChange={onChange} error={err} />
     case 'image':
       return <ImageField label={field.label} value={String(value ?? '')} onChange={onChange} folder={folder} help={field.help} error={err} />
     case 'lines':
@@ -158,7 +172,7 @@ function IconBtn({ label, onClick, disabled, danger, children }: { label: string
 }
 
 /** Fields whose type benefits from full width in the two-column layout. */
-const WIDE = new Set(['textarea', 'lines', 'repeater', 'image'])
+const WIDE = new Set(['textarea', 'lines', 'repeater', 'image', 'location'])
 
 export function ContentForm({
   fields,

@@ -8,6 +8,10 @@ export const UPLOAD_FOLDERS = ['products', 'gallery', 'pages', 'misc'] as const
 export const UPLOAD_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 export const UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
+export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
+/** Same list as the previous site's sign-up forms. */
+export const COUNTRIES = ['Canada', 'United States', 'United Kingdom', 'Australia', 'Ireland', 'New Zealand', 'France', 'Germany', 'India', 'Mexico', 'Philippines', 'Egypt', 'Other'] as const
+
 export const CONTACT_REASONS = [
   'I need a service',
   'I want to advertise my service',
@@ -16,6 +20,13 @@ export const CONTACT_REASONS = [
   'Something else',
 ] as const
 
+export const PLAN_BILLING = ['one-time', 'subscription'] as const
+export const PLAN_INTERVALS = ['month', 'year'] as const
+export const PLAN_PAYERS = ['customer', 'provider'] as const
+export const SUBSCRIBER_STATUSES = ['pending', 'active', 'trial', 'past-due', 'paused', 'cancelled'] as const
+/** Subscribers in these states appear on the public map (if also marked public). */
+export const LIVE_SUBSCRIBER_STATUSES = ['active', 'trial'] as const
+
 export const CATEGORY_GROUPS = [
   'Home & Property',
   'Auto & Transport',
@@ -23,13 +34,6 @@ export const CATEGORY_GROUPS = [
   'Wellness & Lifestyle',
   'Events & Creative',
   'Business & Local',
-] as const
-
-/** Must match the map in components/category-icon.tsx. */
-export const ICON_KEYS = [
-  'sparkles', 'spray-can', 'hammer', 'truck', 'bug', 'snowflake', 'monitor-smartphone', 'ruler', 'wrench', 'life-buoy',
-  'car', 'car-front', 'baby', 'graduation-cap', 'paw-print', 'heart-pulse', 'compass', 'shirt', 'scissors', 'chef-hat',
-  'calendar-days', 'camera', 'house', 'calculator', 'sprout', 'tag',
 ] as const
 
 export type LeadStatus =(typeof LEAD_STATUSES)[number]

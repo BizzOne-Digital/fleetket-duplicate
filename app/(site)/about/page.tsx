@@ -1,80 +1,64 @@
 import Image from 'next/image'
-import { PageHero, CtaBand, Eyebrow, NumberedList } from '@/components/site/sections'
-import { ImageReveal, Reveal, SplitReveal } from '@/components/motion'
 import { getContent } from '@/lib/content'
 import { resolveImageSrc } from '@/lib/image'
 import { generatePageMetadata } from '@/lib/seo'
 
 export const generateMetadata = () => generatePageMetadata('about', '/about')
 
-export default async function AboutPage() {
-  const [page, home, site] = await Promise.all([getContent('about'), getContent('home'), getContent('site')])
+function Photo({ src, alt = '', className }: { src: string; alt?: string; className: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-sm shadow-[var(--shadow-card)] ${className}`}>
+      <Image src={resolveImageSrc(src)} alt={alt} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
+    </div>
+  )
+}
 
+export default async function AboutPage() {
+  const page = await getContent('about')
   return (
     <>
-      <PageHero eyebrow={page.eyebrow} heading={page.heading} crumbs={[{ label: 'About', href: '/about' }]} image={page.image} imageAlt="Storefront window with a sign thanking customers for supporting local" />
-
-      {/* Intro */}
-      <section className="bg-cream py-24 text-forest-900 lg:py-36">
-        <div className="container-x grid gap-12 lg:grid-cols-12">
-          <Reveal className="lg:col-span-3">
-            <Eyebrow tone="light">Who we are</Eyebrow>
-          </Reveal>
-          <div className="lg:col-span-9">
-            <SplitReveal text={page.intro} className="font-display text-[clamp(1.75rem,3.4vw,3.25rem)] font-semibold leading-[1.1] tracking-[-0.035em] text-balance" />
-            <Reveal className="mt-12 inline-flex items-center gap-4 rounded-sm bg-lime px-5 py-3 font-display text-lg font-semibold tracking-[-0.02em]" delay={0.2}>
-              “{site.tagline}.”
-            </Reveal>
+      <section className="py-8">
+        <div className="container-x text-center">
+          <h1 className="text-[1.75rem] font-bold text-ink sm:text-[2rem]">{page.title}</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-[1.375rem] font-bold leading-snug text-brand sm:text-[1.625rem]">{page.subtitle}</p>
+          <p className="mx-auto mt-2 max-w-3xl text-[1.0625rem] leading-relaxed text-body sm:text-[1.25rem]">{page.intro}</p>
+          <div className="relative mt-5 aspect-[21/8] overflow-hidden rounded-sm shadow-[var(--shadow-card)]">
+            <Image src={resolveImageSrc(page.image)} alt="Toronto, Canada skyline" fill priority sizes="100vw" className="object-cover" />
           </div>
         </div>
       </section>
 
-      {/* Problem / approach */}
-      <section className="border-t border-sage bg-paper py-24 text-forest-900 lg:py-36">
-        <div className="container-x grid gap-20 lg:grid-cols-2 lg:gap-24">
-          {[
-            { title: page.problemTitle, body: page.problemBody, n: '01' },
-            { title: page.approachTitle, body: page.approachBody, n: '02' },
-          ].map((b, i) => (
-            <Reveal key={b.n} delay={i * 0.1} className={i === 1 ? 'lg:mt-40' : ''}>
-              <div className="flex items-center gap-4">
-                <span className="t-index text-moss">{b.n}</span>
-                <span className="h-px flex-1 bg-forest-900/15" />
-              </div>
-              <h2 className="t-h2 mt-8">{b.title}</h2>
-              <p className="mt-6 text-lg leading-relaxed text-slate text-pretty">{b.body}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* Principles */}
-      <section className="grain relative bg-forest-900 py-24 lg:py-32">
-        <div className="container-x">
-          <Reveal className="max-w-2xl">
-            <Eyebrow>What guides us</Eyebrow>
-            <h2 className="t-h2 mt-6 text-cream">Principles, not slogans.</h2>
-          </Reveal>
-          <div className="mt-16">
-            <NumberedList items={page.principles} />
+      <section className="bg-band py-8">
+        <div className="container-x grid items-center gap-8 md:grid-cols-2">
+          <div>
+            <h2 className="text-[1.75rem] font-bold text-ink">{page.missionTitle}</h2>
+            <p className="mt-2 text-[1.0625rem] leading-relaxed sm:text-[1.25rem]">{page.missionBody}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 pt-6">
+              <Photo src={page.missionImage1} className="aspect-[3/4]" />
+              <Photo src={page.missionImage2} className="aspect-[4/3]" />
+            </div>
+            <div className="grid gap-3">
+              <Photo src={page.missionImage3} className="aspect-[4/3]" />
+              <Photo src={page.missionImage4} className="aspect-[4/5]" />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Vision */}
-      <section className="surface-light bg-paper py-24 text-forest-900 lg:py-36">
-        <div className="container-x grid gap-14 lg:grid-cols-12 lg:items-center">
-          <ImageReveal className="relative aspect-[4/5] rounded-md lg:col-span-5">
-            <Image src={resolveImageSrc(page.secondaryImage)} alt="Independent business owner at her counter" fill sizes="(min-width: 1024px) 40vw, 100vw" className="object-cover" />
-          </ImageReveal>
-          <Reveal className="lg:col-span-6 lg:col-start-7">
-            <Eyebrow tone="light">{page.visionTitle}</Eyebrow>
-            <p className="mt-8 font-display text-[clamp(1.75rem,3vw,2.75rem)] font-semibold leading-[1.12] tracking-[-0.035em] text-pretty">{page.visionBody}</p>
-          </Reveal>
+      <section className="py-8">
+        <div className="container-x relative pb-4 md:pb-0">
+          <div className="relative aspect-[16/8] overflow-hidden rounded-sm shadow-[var(--shadow-card)] md:w-[60%]">
+            <Image src={resolveImageSrc(page.networkImage)} alt="Service provider helping a client" fill sizes="(min-width: 768px) 60vw, 100vw" className="object-cover" />
+          </div>
+          <div className="relative -mt-10 ml-auto w-[92%] rounded-sm bg-white p-5 shadow-[var(--shadow-card)] md:absolute md:bottom-0 md:right-[var(--gutter)] md:mt-0 md:w-[60%] md:translate-y-1/4">
+            <h2 className="text-[1.75rem] font-bold text-ink">{page.networkTitle}</h2>
+            <p className="mt-2 text-[1.0625rem] leading-relaxed sm:text-[1.25rem]">{page.networkBody}</p>
+          </div>
         </div>
+        <div className="hidden h-24 md:block" />
       </section>
-
-      <CtaBand title={home.finalTitle} body={home.finalBody} />
     </>
   )
 }

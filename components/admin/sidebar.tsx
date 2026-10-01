@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  BadgeDollarSign, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, MapPinned, Menu, Scale, Settings, Users, X,
+  BadgeDollarSign, CreditCard, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Users, X,
 } from 'lucide-react'
 import { logout } from '@/app/actions/public'
 import { LogoMark } from '@/components/logo'
@@ -13,13 +13,21 @@ import { cn } from '@/lib/utils'
 const GROUPS = [
   { label: 'Overview', items: [{ href: '/admin', label: 'Dashboard', icon: Gauge, exact: true }, { href: '/admin/leads', label: 'Leads & messages', icon: Inbox, badge: 'leads' }] },
   {
+    label: 'Subscribers',
+    items: [
+      { href: '/admin/subscribers', label: 'Subscribers', icon: Store },
+      { href: '/admin/map', label: 'Subscriber map', icon: MapIcon },
+      { href: '/admin/plans', label: 'Pricing plans', icon: CreditCard },
+    ],
+  },
+  {
     label: 'Content',
     items: [
       { href: '/admin/categories', label: 'Service categories', icon: LayoutGrid },
       { href: '/admin/cities', label: 'Areas served', icon: MapPinned },
       { href: '/admin/faqs', label: 'FAQs', icon: HelpCircle },
       { href: '/admin/pages', label: 'Pages', icon: FileText },
-      { href: '/admin/content/pricing', label: 'Pricing', icon: BadgeDollarSign },
+      { href: '/admin/content/pricing', label: 'Pricing page', icon: BadgeDollarSign },
       { href: '/admin/legal', label: 'Legal', icon: Scale },
       { href: '/admin/media', label: 'Media library', icon: ImageIcon },
     ],

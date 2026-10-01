@@ -2,112 +2,95 @@
 
 /* ============================================================
    Fleeket design tokens
-   Warm cream canvas, deep forest type, soft olive structure,
-   and lime as the single high-energy accent.
+   Public site: the fleeket.com brand — red #EC1C24, Poppins, greys.
+   Admin: forest/cream/olive tokens (unchanged).
    ============================================================ */
 @theme {
+  /* Public site (copied from fleeket.com) */
+  --color-brand: #ec1c24;
+  --color-brand-light: #fe353d;
+  --color-brand-dark: #c4141b;
+  --color-member: #0d6efd;
+  --color-member-dark: #0a58ca;
+  --color-ink: #333333;
+  --color-body: #212529;
+  --color-muted: #6c757d;
+  --color-band: #e6e6e6;
+  --color-panel: #f2f2f2;
+  --color-line: #cccccc;
+  --color-blush: #fcc6c8;
+  --color-blush-ink: #5c0a0d;
+
+  /* Admin */
   --color-forest-950: #1a2620;
-  --color-forest-900: #26352e; /* brand forest */
+  --color-forest-900: #26352e;
   --color-forest-850: #2d3e36;
   --color-forest-800: #34473e;
   --color-forest-700: #3f554a;
-
-  --color-mist: #f7f6ec; /* primary text on forest */
-  --color-fog: #c2cbb6; /* secondary text on forest — 7.5:1 */
-  --color-haze: #8e9c88; /* meta/decorative on forest only */
-
-  --color-cream: #f7f6ec; /* brand warm cream */
+  --color-mist: #f7f6ec;
+  --color-fog: #c2cbb6;
+  --color-haze: #8e9c88;
+  --color-cream: #f7f6ec;
   --color-paper: #fbfaf3;
-  --color-sage: #d9e0c9; /* brand soft olive */
-  --color-slate: #4e5a51; /* secondary text on cream — 7.4:1 */
+  --color-sage: #d9e0c9;
+  --color-slate: #4e5a51;
   --color-pebble: #7d8678;
-
-  --color-lime: #d9f25a; /* brand lime — fills and accents on forest */
+  --color-lime: #d9f25a;
   --color-lime-soft: #e8fa93;
-  --color-moss: #56661c; /* lime's legible counterpart for text on cream — 6.1:1 */
+  --color-moss: #56661c;
   --color-moss-700: #44521a;
   --color-danger: #c4442f;
   --color-success: #3f8f4f;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-border: var(--border);
-  --color-ring: var(--ring);
-
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
-
   --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
-
-  --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.55);
-  --shadow-card: 0 1px 2px rgb(26 38 32 / 0.06), 0 18px 40px -20px rgb(26 38 32 / 0.25);
-
-  --breakpoint-3xl: 1920px;
-
-  --animate-marquee: marquee 60s linear infinite;
-  --animate-pulse-ring: pulse-ring 2.4s var(--ease-out-expo) infinite;
-
-  @keyframes marquee {
-    to { transform: translateX(-50%); }
-  }
-  @keyframes pulse-ring {
-    0% { transform: scale(0.6); opacity: 0.9; }
-    100% { transform: scale(2.4); opacity: 0; }
-  }
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 10px 28px -14px rgb(0 0 0 / 0.25);
+  --shadow-lift: 0 18px 50px -20px rgb(0 0 0 / 0.45);
 }
 
-/* Brand palette (shadcn-style semantic tokens) + layering scale */
 :root {
-  --background: oklch(0.978 0.008 100); /* warm off-white */
-  --foreground: oklch(0.22 0.03 155); /* deep forest text */
-  --border: oklch(0.89 0.018 120); /* soft olive borders */
-  --ring: oklch(0.72 0.16 105); /* lime focus ring */
-
-  --z-base: 1;
-  --z-raised: 10;
   --z-header: 50;
   --z-overlay: 80;
-  --z-splash: 100;
-  --container: 1360px;
-  --gutter: clamp(1.25rem, 3.2vw, 2.75rem);
-  --header-h: 76px;
+  --container: 1302px;
+  --gutter: 1rem;
+  --header-h: 54px;
+}
+@media (min-width: 640px) {
+  :root {
+    --gutter: 1.5rem;
+  }
 }
 
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
-    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     scroll-padding-top: calc(var(--header-h) + 16px);
   }
   body {
-    background: var(--background);
-    color: var(--foreground);
+    background: #fff;
+    color: var(--color-body);
     font-family: var(--font-sans);
-    font-size: 1rem;
+    font-size: 0.875rem;
     line-height: 1.6;
   }
   ::selection {
-    background: #d9f25a;
-    color: #18221e;
+    background: var(--color-brand);
+    color: #fff;
   }
-  /* Lime ring with a forest halo reads on both cream and forest surfaces. */
   :focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 5px rgb(38 53 46 / 0.55);
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
     border-radius: 2px;
   }
-  img {
-    -webkit-user-drag: none;
+  .surface-light :focus-visible {
+    outline-color: var(--color-moss);
   }
 }
 
@@ -119,278 +102,74 @@
     padding-inline: var(--gutter);
   }
 
-  /* ---------- Type scale ---------- */
-  .t-display {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(2.75rem, 7.4vw, 7.25rem);
-    line-height: 0.94;
-    letter-spacing: -0.045em;
-  }
-  .t-h1 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(2.375rem, 5.2vw, 4.75rem);
-    line-height: 1;
-    letter-spacing: -0.04em;
-  }
-  .t-h2 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(1.875rem, 3.6vw, 3.25rem);
-    line-height: 1.04;
-    letter-spacing: -0.035em;
-  }
-  .t-h3 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(1.25rem, 1.6vw, 1.5rem);
+  /* Section heading style used throughout fleeket.com */
+  .h-section {
+    font-weight: 700;
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
     line-height: 1.2;
-    letter-spacing: -0.02em;
+    color: var(--color-ink);
   }
-  .t-lead {
-    font-size: clamp(1.0625rem, 1.25vw, 1.25rem);
-    line-height: 1.55;
-  }
-  .t-eyebrow {
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-  }
-  .t-index {
-    font-family: var(--font-sans);
+
+  /* Inputs styled like the live site's forms */
+  .live-input {
+    width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.75rem;
     font-size: 0.8125rem;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
+    color: var(--color-body);
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .accent-serif {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: -0.02em;
+  .live-input::placeholder {
+    color: var(--color-body);
+    opacity: 0.85;
   }
-
-  /* Hairline rules */
-  .rule {
-    border-color: rgb(255 255 255 / 0.09);
+  .live-input:focus {
+    outline: none;
+    border-color: #f5a3a6;
+    box-shadow: 0 0 0 0.2rem rgb(236 28 36 / 0.18);
   }
-  .surface-light .rule {
-    border-color: rgb(7 17 31 / 0.12);
+  .live-input[aria-invalid='true'] {
+    border-color: var(--color-brand);
   }
 
-  /* Rich text from CMS (rendered as React nodes — never raw HTML) */
   .prose-legal p {
     margin-block: 0 1rem;
-    color: var(--color-slate);
   }
   .prose-legal ul {
     margin: 0 0 1.25rem;
-    padding: 0;
-    list-style: none;
+    padding-left: 1.25rem;
+    list-style: disc;
   }
   .prose-legal li {
-    position: relative;
-    padding-left: 1.25rem;
-    margin-bottom: 0.5rem;
-    color: var(--color-slate);
-  }
-  .prose-legal li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0.72em;
-    width: 0.5rem;
-    height: 1px;
-    background: var(--color-moss);
-  }
-
-  /* Subtle grain to keep large navy fields from looking flat/digital */
-  .grain::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.05;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    mix-blend-mode: overlay;
+    margin-bottom: 0.4rem;
   }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .text-pretty {
-    text-wrap: pretty;
-  }
-  .no-scrollbar {
-    scrollbar-width: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-@keyframes cue {
-  from { transform: translateX(-6rem); }
-  to { transform: translateX(110vw); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-@keyframes drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-7%, 9%, 0) scale(1.12); }
-}
-
-/* ---------- Splash: pure CSS so it can never trap the page if JS fails ----------
-   0.0s mark draws · 0.2s wordmark rises · 1.25s lime wipe · 1.75s curtain lifts (lime trail follows) */
-.splash,
-.splash-trail {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-.splash {
-  z-index: var(--z-splash);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: var(--color-forest-950);
-  animation: curtain-up 1s var(--ease-in-out-quart) 1.75s forwards;
-}
-.splash-trail {
-  z-index: calc(var(--z-splash) - 1);
-  background: var(--color-lime);
-  animation: curtain-up 1s var(--ease-in-out-quart) 1.92s forwards;
-}
-.splash-mark path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: splash-draw 1s var(--ease-out-expo) 0.05s forwards;
-}
-.splash-word span {
-  display: inline-block;
-  transform: translateY(105%) rotate(6deg);
-  transform-origin: left bottom;
-  animation: splash-rise 1s var(--ease-out-expo) forwards;
-}
-.splash-tag {
+/* Hero slider: slides cross-fade; the active one slowly zooms */
+.slide {
   opacity: 0;
-  animation: fade-in 0.8s var(--ease-out-expo) 0.7s forwards;
+  transition: opacity 1s ease;
 }
-.splash-line {
-  transform: scaleX(0);
-  transform-origin: left;
-  animation: splash-line 1.1s var(--ease-in-out-quart) 0.45s forwards;
+.slide[data-active='true'] {
+  opacity: 1;
 }
-.splash-wipe {
-  position: absolute;
-  inset: 0;
-  background: var(--color-lime);
-  clip-path: inset(100% 0 0 0);
-  animation: wipe-up 0.55s var(--ease-in-out-quart) 1.25s forwards;
+.slide[data-active='true'] img {
+  animation: slide-zoom 7s ease-out forwards;
 }
-html.splash-seen .splash,
-html.splash-seen .splash-trail {
-  display: none;
-}
-/* Hero choreography waits for the splash, but only when it actually plays. */
-.has-splash {
-  --intro: 2.05s;
-}
-html.splash-seen .has-splash {
-  --intro: 0.1s;
-}
-@keyframes splash-draw {
-  to { stroke-dashoffset: 0; }
-}
-@keyframes splash-rise {
-  to { transform: none; }
-}
-@keyframes splash-line {
-  to { transform: scaleX(1); }
-}
-@keyframes fade-in {
-  to { opacity: 1; }
-}
-@keyframes wipe-up {
-  to { clip-path: inset(0 0 0 0); }
-}
-@keyframes curtain-up {
-  to { transform: translateY(-100%); visibility: hidden; }
+@keyframes slide-zoom {
+  from { transform: scale(1.08); }
+  to { transform: scale(1); }
 }
 
-/* ---------- Hero media: frame opens, then a slow Ken Burns drift keeps the photo alive ---------- */
-.hero-frame {
-  clip-path: inset(6% 4% 6% 4% round 18px);
-  animation: frame-open 1.6s var(--ease-in-out-quart) forwards;
-  animation-delay: var(--intro, 0.1s);
+/* Map tiles toned slightly so the brand-red pins stand out. */
+.fk-tiles {
+  filter: grayscale(0.6) contrast(0.95) brightness(1.04);
 }
-.hero-kenburns {
-  transform: scale(1.18);
-  animation:
-    kb-settle 2.4s var(--ease-out-expo) forwards,
-    kb-drift 26s ease-in-out 2.4s infinite alternate;
-  animation-delay: var(--intro, 0.1s), calc(var(--intro, 0.1s) + 2.4s);
-}
-.hero-sweep {
-  background: linear-gradient(105deg, transparent 35%, rgb(217 242 90 / 0.10) 50%, transparent 65%);
-  background-size: 250% 100%;
-  animation: sweep 9s ease-in-out infinite;
-}
-@keyframes frame-open {
-  to { clip-path: inset(0 0 0 0 round 0); }
-}
-@keyframes kb-settle {
-  to { transform: scale(1.04); }
-}
-@keyframes kb-drift {
-  from { transform: scale(1.04) translate3d(0, 0, 0); }
-  to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); }
-}
-@keyframes sweep {
-  0%, 15% { background-position: 120% 0; }
-  60%, 100% { background-position: -40% 0; }
-}
-
-/* ---------- Hero entrance (CSS, staggered via --d) ---------- */
-.rise {
-  opacity: 0;
-  transform: translateY(18px);
-  animation: rise 1s var(--ease-out-expo) forwards;
-  animation-delay: calc(var(--intro, 0.1s) + var(--d, 0s));
-}
-@keyframes rise {
-  to { opacity: 1; transform: none; }
-}
-.word-mask {
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: bottom;
-  padding-bottom: 0.08em;
-  margin-bottom: -0.08em;
-}
-.word-mask > span {
-  display: inline-block;
-  transform: translateY(105%);
-  animation: word-in 1.1s var(--ease-out-expo) forwards;
-  animation-delay: calc(var(--intro, 0.1s) + var(--d, 0s));
-}
-@keyframes word-in {
-  to { transform: none; }
-}
-.clip-reveal {
-  clip-path: inset(100% 0 0 0);
-  animation: clip-in 1.4s var(--ease-in-out-quart) forwards;
-  animation-delay: calc(var(--intro, 0.1s) + var(--d, 0s));
-}
-@keyframes clip-in {
-  to { clip-path: inset(0 0 0 0); }
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-panel);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -398,13 +177,7 @@ html.splash-seen .has-splash {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
-    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  .splash,
-  .splash-trail {
-    display: none;
   }
 }

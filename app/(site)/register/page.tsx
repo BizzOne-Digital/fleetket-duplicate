@@ -1,16 +1,18 @@
-import { redirect } from 'next/navigation'
-import { AuthShell } from '@/components/site/auth-shell'
-import { RegisterForm } from '@/components/forms/auth-forms'
-import { getCurrentUser } from '@/lib/auth'
-import { noIndexMetadata } from '@/lib/seo'
+import { SignupShell } from '@/components/live/signup-shell'
+import { MemberForm } from '@/components/forms/live-forms'
+import { getContent } from '@/lib/content'
+import { buildMetadata } from '@/lib/seo'
 
-export const metadata = noIndexMetadata('Create an account')
+export async function generateMetadata() {
+  const page = await getContent('memberPage')
+  return buildMetadata({ title: page.seoTitle || 'Be Our Member', description: page.seoDescription, path: '/register', absoluteTitle: true })
+}
 
 export default async function RegisterPage() {
-  if (await getCurrentUser()) redirect('/account')
+  const page = await getContent('memberPage')
   return (
-    <AuthShell title="Create your account." body="Free to join. Find the help you need — or put your service in front of the people looking for it.">
-      <RegisterForm />
-    </AuthShell>
+    <SignupShell heading={page.heading} body={page.body} image={page.image} imageAlt="Smiling customer browsing taskers on a phone" imageSide="left">
+      <MemberForm />
+    </SignupShell>
   )
 }

@@ -3,7 +3,7 @@ import { AdminHeader, Badge, EmptyState, Panel, formatDate } from '@/components/
 import { ButtonLink } from '@/components/ui/button'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/content'
-import { Category, City, Faq, Lead, StoredUpload, User } from '@/lib/models'
+import { Category, City, Faq, Lead, StoredUpload, Subscriber, User } from '@/lib/models'
 import { isEmailConfigured } from '@/lib/email'
 import { LEAD_TYPE_LABELS, type LeadType } from '@/lib/constants'
 
@@ -13,7 +13,7 @@ export default async function AdminDashboard() {
   const user = await requireAdmin()
   await db()
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent] = await Promise.all([
+  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent, liveSubscribers, pendingTaskers] = await Promise.all([
     Lead.countDocuments({ status: 'new' }),
     Lead.countDocuments({ createdAt: { $gte: weekAgo } }),
     Lead.countDocuments(),
@@ -25,13 +25,15 @@ export default async function AdminDashboard() {
     StoredUpload.countDocuments(),
     User.countDocuments(),
     Lead.find().sort({ createdAt: -1 }).limit(6).lean(),
+    Subscriber.countDocuments({ status: { $in: ['active', 'trial'] } }),
+    Subscriber.countDocuments({ status: 'pending' }),
   ])
 
   const stats = [
     { label: 'New leads', value: newLeads, href: '/admin/leads?status=new', accent: newLeads > 0 },
     { label: 'Leads this week', value: weekLeads, href: '/admin/leads' },
     { label: 'Published categories', value: categories, href: '/admin/categories', note: hiddenCategories ? `${hiddenCategories} hidden` : undefined },
-    { label: 'Areas served', value: areas, href: '/admin/cities' },
+    { label: 'Active subscribers', value: liveSubscribers, href: '/admin/subscribers', accent: pendingTaskers > 0, note: pendingTaskers ? `${pendingTaskers} tasker sign-up${pendingTaskers === 1 ? '' : 's'} awaiting approval` : `${areas} areas served` },
   ]
 
   return (

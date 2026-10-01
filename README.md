@@ -1,10 +1,10 @@
 # Fleeket
 
-Marketing site, lead capture and content admin for **Fleeket** — a digital advertising and service‑discovery platform for Canada and the United States.
+A rebuild of **www.fleeket.com** with the same look, pages and categories as the live site, plus an admin panel, pricing plans per category, a subscriber map and three placeholder categories.
 
-**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS v4 · MongoDB Atlas + Mongoose · Zod · Motion · Lenis (smooth scroll) · jose · Nodemailer
+**Stack:** Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS v4 · MongoDB Atlas + Mongoose · Zod · Leaflet · jose · Nodemailer
 
-**Palette:** warm cream `#F7F6EC` · forest `#26352E` · soft olive `#D9E0C9` · lime `#D9F25A` (tokens in `app/globals.css`). Lime is used as a fill on forest; on cream, text accents use the darker moss `#56661C` for contrast.
+**Look:** copied from the live site: Poppins, Fleeket red `#ec1c24`, member blue `#0d6efd`, grey bands `#e6e6e6` (tokens in `app/globals.css`). The admin keeps its own forest/cream palette.
 
 ## Quick start
 
@@ -14,7 +14,7 @@ cp .env.example .env.local   # then fill in MONGODB_URI, SESSION_SECRET, ADMIN_E
 npx pnpm dev
 ```
 
-Open http://localhost:3000. On the first request with a database, the app **seeds itself** with the launch content (25 categories, 13 provinces/territories, FAQs, page copy, legal text) and creates the owner account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Sign in at `/login` → you land in `/admin`.
+Open http://localhost:3000. On the first request with a database, the app **seeds itself** with the launch content (the live site's 22 categories and 47 sub-services with their original IDs, 13 provinces/territories, the 4 live FAQs, page copy, legal text) and creates the owner account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Sign in at `/login` → you land in `/admin`.
 
 Without `MONGODB_URI` the public site still renders (read‑only, from the bundled launch content in `lib/defaults.ts`), forms return a friendly "temporarily unavailable" message and the admin explains what to configure.
 
@@ -42,9 +42,10 @@ See [`.env.example`](.env.example) for the full list with notes.
 
 ```
 app/
-  (site)/          Public pages: home, services, services/[slug], how-it-works, pricing,
-                   for-providers, for-customers, cities, cities/[slug], about, faq, contact,
-                   privacy, terms, login, register, account
+  (site)/          Public pages: home (slider, search, services, steps, FAQ), services/[slug],
+                   services/[slug]/[sub] (taskers + request form), about, contact,
+                   become-a-tasker, register, login, account, map, search, privacy, terms
+  ServiceCategory/ Old live links /ServiceCategory/<id>[/<subId>] → 308 to the new slugs
   admin/           Dashboard, leads, categories/cities/faqs ([resource]), pages, pricing,
                    legal, media, users, settings (content/[key])
   actions/         Server actions — public.ts (forms, auth) and admin.ts (all CMS writes)
@@ -52,9 +53,10 @@ app/
   api/uploads/…    GET image bytes from MongoDB with immutable caching
   api/admin/leads/export   CSV export
   sitemap.ts, robots.ts, manifest.ts, opengraph-image.tsx
-components/        site/ (public UI), home/, services/, forms/, admin/, ui/
+components/        live/ (public UI copied from fleeket.com), forms/, map/, admin/, site/ (consent, JSON-LD), ui/
 lib/
-  models.ts        Mongoose models: Category, City, Faq, Lead, User, Content, StoredUpload
+  models.ts        Mongoose models: Category, Plan, Subscriber, City, Faq, Lead, User, Content, StoredUpload
+  live-catalog.ts  The live site's categories/sub-services (names, IDs, images)
   content.ts       Data access + first-run seeding (public reads fall back to defaults)
   defaults.ts      Launch content
   content-schema.ts / resources.ts   Field specs that drive admin forms AND their Zod validation
@@ -70,6 +72,17 @@ proxy.ts           Optimistic redirect of signed-out visitors away from /admin a
 - **Pages, pricing, legal, site settings and SEO defaults** are keyed documents edited at `/admin/content/<key>`. Each form is generated from a field spec in `lib/content-schema.ts`, and the same spec builds the server-side Zod schema, so a field added there appears in the admin and is validated automatically.
 - Headings support `|` for a line break and `*words*` for the serif accent.
 - Legal and long-form text is stored as plain text and rendered as React nodes (blank line = paragraph, `- ` = bullet). No HTML is ever injected.
+
+## Pricing plans, subscribers and maps
+
+- **Pricing plans** (`/admin/plans`): payment strategies a category can use instead of the default connection fee (Admin → Pricing page). Each plan is *one-time* or *subscription* (monthly/yearly, optional free trial), paid by the customer or the provider. Pick a category's plan in its editor; leave it empty to keep the default.
+- **New categories**: three hidden placeholders (`new-category-1…3`) are seeded on the placeholder plan *Provider subscription (to be confirmed)*. When the client confirms them, rename and describe each one, set the plan's price, then publish both. They're added once (`__seeded_v2`), so deleting one won't bring it back.
+- **Become A Tasker** (`/become-a-tasker`): creates a provider account plus one *pending* subscriber per chosen category (skills, hours, address) and a lead. Taskers are hidden until an admin sets them to *active* or *trial*.
+- **Subscribers** (`/admin/subscribers`): service providers with category, sub-services, plan, status (pending, active, trial, past-due, paused, cancelled), hours, address and a map pin placed by clicking the map. Sign-ups don't geocode the address, so **set the pin** when approving or the tasker won't show on the map. Contact details stay private.
+- **Requests**: customers choose taskers on `/services/<category>/<sub>` and send a request; it's stored as a *service-request* lead with the chosen taskers in the notes.
+- **Maps**: `/map` (public) shows subscribers that are *published* and *active or trial*, with coordinates rounded to ~1 km before they reach the browser. `/admin/map` shows everyone at their exact pin, with inactive statuses muted.
+- **Map tiles**: default to OpenStreetMap's public tiles, which are for light use only. Before launch traffic, set `NEXT_PUBLIC_MAP_TILE_URL` (and `_ATTRIBUTION`) to a keyed provider such as MapTiler or Stadia.
+- *Not built yet:* charging subscriptions. Plans describe pricing and subscribers record status, but there's no payment-gateway integration; connect it to the existing gateway once its details are confirmed. The live site uses Stripe (CAD) checkout and subscription sessions; reuse those keys and price IDs.
 
 ## Images
 
@@ -97,4 +110,6 @@ Every form (contact, service request, provider listing) is validated with Zod on
 - [ ] Confirm what the **$9.99** fee covers and its currency (Admin → Pricing). JSON-LD `Offer` markup is only emitted once a currency is set
 - [ ] Have counsel review the Privacy Policy and Terms (Admin → Legal); they were restructured from the previous site's policy
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the live domain and configure SMTP
-- [ ] Replace launch photography with Fleeket's own where available (Admin → Media library)
+- [ ] Images are loaded from `api.fleeket.com` / `www.fleeket.com`. Upload them to the Media library before the old server is retired
+- [ ] Add the client's 3 new categories (rename the hidden placeholders) and price their plan
+- [ ] Low-RAM build machine? `NEXT_BUILD_CPUS=2 pnpm build`

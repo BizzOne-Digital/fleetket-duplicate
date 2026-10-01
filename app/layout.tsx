@@ -1,13 +1,11 @@
 import type { Metadata, Viewport } from 'next'
-import { Instrument_Sans, Instrument_Serif, Manrope } from 'next/font/google'
-import { Providers } from '@/components/providers'
+import { Poppins } from 'next/font/google'
+import { Toaster } from 'sonner'
 import { getContent } from '@/lib/content'
 import { getSiteUrl } from '@/lib/seo'
 import './globals.css'
 
-const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', display: 'swap' })
-const instrument = Instrument_Sans({ subsets: ['latin'], variable: '--font-instrument', display: 'swap' })
-const instrumentSerif = Instrument_Serif({ subsets: ['latin'], weight: '400', style: 'italic', variable: '--font-instrument-serif', display: 'swap' })
+const poppins = Poppins({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-poppins', display: 'swap' })
 
 export async function generateMetadata(): Promise<Metadata> {
   const [seo, site] = await Promise.all([getContent('seo'), getContent('site')])
@@ -23,22 +21,14 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export const viewport: Viewport = {
-  themeColor: '#26352e',
-  colorScheme: 'dark',
-}
-
-// Marks the splash as already played this session before first paint, so it never replays on navigation.
-const splashScript = `try{if(sessionStorage.getItem('fk-splash'))document.documentElement.classList.add('splash-seen');else sessionStorage.setItem('fk-splash','1')}catch(e){}`
+export const viewport: Viewport = { themeColor: '#ec1c24' }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${instrument.variable} ${instrumentSerif.variable}`} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: splashScript }} />
-      </head>
+    <html lang="en" className={poppins.variable}>
       <body>
-        <Providers>{children}</Providers>
+        {children}
+        <Toaster position="bottom-right" richColors closeButton />
       </body>
     </html>
   )

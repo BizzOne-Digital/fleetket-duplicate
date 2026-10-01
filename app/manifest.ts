@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Connecting needs with expert deeds.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#26352e',
-    theme_color: '#26352e',
+    background_color: '#ec1c24',
+    theme_color: '#ec1c24',
     icons: [
       { src: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
       { src: '/apple-icon', type: 'image/png', sizes: '180x180' },

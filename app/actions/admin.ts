@@ -6,7 +6,7 @@ import { isValidObjectId } from 'mongoose'
 import { requireAdmin, hashPassword } from '@/lib/auth'
 import { db } from '@/lib/content'
 import { Content, Lead, StoredUpload, User } from '@/lib/models'
-import { RESOURCE_MODELS } from '@/lib/resource-models'
+import { RESOURCE_MODELS, findBrokenReference } from '@/lib/resource-models'
 import { schemaFromFields } from '@/lib/fields'
 import { RESOURCE_DEFS, SLUG_RE, isResourceKey } from '@/lib/resources'
 import { CONTENT_DEFS, isContentKey } from '@/lib/content-schema'
@@ -37,6 +37,8 @@ export async function saveResource(key: string, id: string | null, input: unknow
   if (!parsed.success) return bad('Please fix the highlighted fields.', flattenErrors(parsed.error))
   const data = parsed.data as Record<string, unknown>
   const model = RESOURCE_MODELS[key]
+  const broken = await findBrokenReference(def.fields, data)
+  if (broken) return bad('Please fix the highlighted fields.', { [broken]: 'That item no longer exists — choose another' })
 
   if (def.hasSlug) {
     data.slug = String(data.slug).toLowerCase()

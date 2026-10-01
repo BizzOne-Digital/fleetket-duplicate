@@ -1,22 +1,17 @@
 import Link from 'next/link'
-import { Logo } from '@/components/logo'
-import { Backdrop } from '@/components/site/sections'
-import { ButtonLink } from '@/components/ui/button'
+import { Logo } from '@/components/live/logo'
 
 export default function NotFound() {
   return (
-    <main className="grain relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-forest-900">
-      <Backdrop />
-      <div className="container-x relative py-8">
-        <Link href="/" aria-label="Fleeket home" className="text-cream"><Logo /></Link>
-      </div>
-      <div className="container-x relative flex flex-1 flex-col justify-center pb-24">
-        <p className="t-eyebrow text-lime">404 · Page not found</p>
-        <h1 className="t-display mt-6 max-w-[12ch] text-cream">This page has moved on.</h1>
-        <p className="t-lead mt-6 max-w-lg text-fog">The link may be outdated or the page may have been renamed. Let’s get you somewhere useful.</p>
-        <div className="mt-10 flex flex-wrap gap-3">
-          <ButtonLink href="/" size="lg" variant="light" arrow>Back to home</ButtonLink>
-          <ButtonLink href="/services" size="lg" variant="outline" className="text-cream">Explore services</ButtonLink>
+    <main className="grid min-h-[100svh] place-items-center bg-band px-4 text-center">
+      <div>
+        <Link href="/" aria-label="Fleeket home" className="inline-block"><Logo className="h-12" /></Link>
+        <p className="mt-8 text-[4rem] font-bold leading-none text-brand">404</p>
+        <h1 className="mt-2 text-[1.75rem] font-bold text-ink">Page not found</h1>
+        <p className="mx-auto mt-2 max-w-md text-muted">The link may be outdated or the page may have moved.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href="/" className="rounded bg-brand-light px-6 py-2.5 text-white hover:bg-brand">Back to home</Link>
+          <Link href="/#services" className="rounded border border-brand px-6 py-2.5 text-brand hover:bg-brand hover:text-white">Fleeket Services</Link>
         </div>
       </div>
     </main>

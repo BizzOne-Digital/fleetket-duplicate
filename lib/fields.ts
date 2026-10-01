@@ -13,6 +13,12 @@ export type FieldSpec =
   | { name: string; label: string; type: 'image'; help?: string }
   | { name: string; label: string; type: 'lines'; help?: string }
   | { name: string; label: string; type: 'repeater'; help?: string; itemLabel: string; fields: FieldSpec[] }
+  /** Slug of an item in another resource. Options are filled in server-side; existence is checked on save. */
+  | { name: string; label: string; type: 'reference'; help?: string; resource: 'plans' | 'categories'; emptyLabel?: string; options?: { value: string; label: string }[] }
+  /** A point picked on a map. */
+  | { name: string; label: string; type: 'location'; help?: string }
+
+export type LatLng = { lat: number; lng: number }
 
 const imageUrl = z
   .string()
@@ -42,6 +48,10 @@ function fieldSchema(f: FieldSpec): z.ZodType {
       return z.array(z.string().trim().min(1).max(500)).max(100)
     case 'repeater':
       return z.array(schemaFromFields(f.fields)).max(100)
+    case 'reference':
+      return z.string().trim().max(80)
+    case 'location':
+      return z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).nullable()
   }
 }
 
@@ -60,6 +70,8 @@ export function emptyValueFor(f: FieldSpec): unknown {
     case 'lines':
     case 'repeater':
       return []
+    case 'location':
+      return null
     default:
       return ''
   }

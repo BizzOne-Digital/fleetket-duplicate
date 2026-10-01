@@ -5,7 +5,7 @@ import { AdminHeader, Panel } from '@/components/admin/ui'
 import { ContentForm } from '@/components/admin/content-form'
 import { DeleteResourceButton } from '@/components/admin/delete-resource'
 import { db } from '@/lib/content'
-import { RESOURCE_MODELS } from '@/lib/resource-models'
+import { RESOURCE_MODELS, withReferenceOptions } from '@/lib/resource-models'
 import { withDefaults } from '@/lib/fields'
 import { RESOURCE_DEFS, isResourceKey } from '@/lib/resources'
 
@@ -18,9 +18,9 @@ export default async function ResourceEditPage({ params }: PageProps<'/admin/[re
   const isNew = id === 'new'
 
   let initial: Record<string, unknown> = withDefaults(def.fields, { published: true })
+  await db()
   if (!isNew) {
     if (!isValidObjectId(id)) notFound()
-    await db()
     const doc = await RESOURCE_MODELS[resource].findById(id).lean()
     if (!doc) notFound()
     // Serialise to plain JSON for the client form (drops ObjectIds/Dates).
@@ -39,7 +39,7 @@ export default async function ResourceEditPage({ params }: PageProps<'/admin/[re
       />
       <Panel className="px-5 pt-6 md:px-8">
         <ContentForm
-          fields={def.fields}
+          fields={await withReferenceOptions(def.fields)}
           initial={initial}
           action={saveResource.bind(null, resource, isNew ? null : id)}
           folder="gallery"

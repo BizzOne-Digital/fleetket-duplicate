@@ -1,7 +1,7 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect } from 'react'
-import { Button, ButtonLink } from '@/components/ui/button'
 
 export default function RouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -9,16 +9,15 @@ export default function RouteError({ error, reset }: { error: Error & { digest?:
   }, [error])
 
   return (
-    <main className="flex min-h-[100svh] items-center bg-forest-900">
-      <div className="container-x py-24">
-        <p className="t-eyebrow text-lime">Something went wrong</p>
-        <h1 className="t-h1 mt-6 max-w-[16ch] text-cream">We hit an unexpected problem.</h1>
-        <p className="t-lead mt-6 max-w-lg text-fog">
+    <main className="grid min-h-[60svh] place-items-center px-4 py-16 text-center">
+      <div>
+        <h1 className="text-[1.75rem] font-bold text-ink">Something went wrong</h1>
+        <p className="mx-auto mt-2 max-w-md text-muted">
           Please try again. If it keeps happening, email fleeket@outlook.com{error.digest ? ` and mention reference ${error.digest}` : ''}.
         </p>
-        <div className="mt-10 flex flex-wrap gap-3">
-          <Button size="lg" variant="light" onClick={reset} arrow>Try again</Button>
-          <ButtonLink href="/" size="lg" variant="outline" className="text-cream">Back to home</ButtonLink>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={reset} className="rounded bg-brand-light px-6 py-2.5 text-white hover:bg-brand">Try again</button>
+          <Link href="/" className="rounded border border-brand px-6 py-2.5 text-brand hover:bg-brand hover:text-white">Back to home</Link>
         </div>
       </div>
     </main>

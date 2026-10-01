@@ -48,7 +48,8 @@ function secretKey() {
   return new TextEncoder().encode(secret)
 }
 
-export async function createSession(userId: string, role: Role) {
+/** `remember: false` → a browser-session cookie (cleared when the browser closes); the token still expires after 7 days. */
+export async function createSession(userId: string, role: Role, remember = true) {
   const token = await new SignJWT({ role })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(userId)
@@ -60,7 +61,7 @@ export async function createSession(userId: string, role: Role) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
+    ...(remember ? { maxAge: SESSION_DAYS * 24 * 60 * 60 } : {}),
   })
 }
 

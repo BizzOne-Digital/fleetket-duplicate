@@ -1,12 +1,27 @@
 import 'server-only'
 import mongoose, { Schema, model, models, type InferSchemaType, type Model } from 'mongoose'
-import { LEAD_STATUSES, LEAD_TYPES, ROLES, UPLOAD_FOLDERS } from './constants'
+import { LEAD_STATUSES, LEAD_TYPES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, ROLES, SUBSCRIBER_STATUSES, UPLOAD_FOLDERS } from './constants'
 
 const faqItem = new Schema({ q: { type: String, required: true }, a: { type: String, required: true } }, { _id: false })
+
+const subServiceSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    slug: { type: String, required: true, lowercase: true, trim: true },
+    description: { type: String, default: '' },
+    image: { type: String, default: '' },
+    /** ID on the previous fleeket.com — keeps /ServiceCategory/:id/:subId links working. */
+    legacyId: { type: Number },
+  },
+  { _id: false },
+)
 
 const categorySchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
+    /** ID on the previous fleeket.com — keeps /ServiceCategory/:id links working. */
+    legacyId: { type: Number, index: true },
+    subServices: { type: [subServiceSchema], default: [] },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     group: { type: String, required: true, trim: true },
     icon: { type: String, default: 'sparkles' },
@@ -20,11 +35,65 @@ const categorySchema = new Schema(
     seoTitle: { type: String, default: '' },
     seoDescription: { type: String, default: '' },
     featured: { type: Boolean, default: false },
+    /** Slug of a Plan. Empty = the site-wide connection fee (Admin → Pricing page). */
+    plan: { type: String, default: '' },
     published: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
   },
   { timestamps: true },
 )
+
+/** A payment/subscription strategy a category can use instead of the default connection fee. */
+const planSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    billing: { type: String, enum: PLAN_BILLING, default: 'subscription' },
+    amount: { type: Number, default: 0 },
+    currency: { type: String, default: '' },
+    interval: { type: String, enum: PLAN_INTERVALS, default: 'month' },
+    trialDays: { type: Number, default: 0 },
+    payer: { type: String, enum: PLAN_PAYERS, default: 'provider' },
+    summary: { type: String, default: '' },
+    includes: { type: [String], default: [] },
+    published: { type: Boolean, default: false },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+)
+
+/** A service provider subscribed to Fleeket — shown on the maps when public and active. */
+const subscriberSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    category: { type: String, default: '' },
+    plan: { type: String, default: '' },
+    status: { type: String, enum: SUBSCRIBER_STATUSES, default: 'active' },
+    /** Sub-service slugs within the category (the “skills” chosen at sign-up). */
+    subServices: { type: [String], default: [] },
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    region: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    country: { type: String, default: '' },
+    hours: {
+      type: [new Schema({ day: String, start: String, end: String, closed: Boolean }, { _id: false })],
+      default: [],
+    },
+    /** The provider account that signed up, if any. */
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    location: { type: new Schema({ lat: Number, lng: Number }, { _id: false }), default: null },
+    contactName: { type: String, default: '' },
+    email: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    notes: { type: String, default: '' },
+    /** Show on the public map (only while status is active or trial). */
+    published: { type: Boolean, default: true },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+)
+subscriberSchema.index({ status: 1, published: 1 })
 
 const citySchema = new Schema(
   {
@@ -84,6 +153,12 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, default: 'customer' },
     active: { type: Boolean, default: true },
+    phone: { type: String, default: '' },
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    region: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    country: { type: String, default: '' },
     lastLoginAt: { type: Date },
   },
   { timestamps: true },
@@ -117,6 +192,8 @@ function getModel<T extends Schema>(name: string, schema: T) {
 }
 
 export const Category = getModel('Category', categorySchema)
+export const Plan = getModel('Plan', planSchema)
+export const Subscriber = getModel('Subscriber', subscriberSchema)
 export const City = getModel('City', citySchema)
 export const Faq = getModel('Faq', faqSchema)
 export const Lead = getModel('Lead', leadSchema)
