@@ -1,8 +1,9 @@
 import 'server-only'
 import { cache } from 'react'
 import { connectDb, isDbConfigured } from './db'
-import { Category as CategoryModel, City, Content, Faq, Plan as PlanModel, Subscriber, User } from './models'
-import { DEFAULT_CATEGORIES, DEFAULT_CITIES, DEFAULT_CONTENT, DEFAULT_FAQS, PLACEHOLDER_CATEGORIES, PLACEHOLDER_PLAN, type CategorySeed, type DefaultContent } from './defaults'
+import { Category as CategoryModel, City, Content, Faq, Listing as ListingModel, Plan as PlanModel, Subscriber, User } from './models'
+import { DEFAULT_CATEGORIES, DEFAULT_CITIES, DEFAULT_CONTENT, DEFAULT_FAQS, LISTING_CATEGORIES, LISTING_PLANS, type CategorySeed, type DefaultContent } from './defaults'
+import { todayISO, type ListingDuration } from './listings'
 import { LIVE_SUBSCRIBER_STATUSES } from './constants'
 import { hashPassword } from './auth'
 import type { ContentKey } from './content-schema'
@@ -21,7 +22,7 @@ export type Category = Omit<CategorySeed, 'subServices' | 'legacyId'> & {
 export type Plan = {
   slug: string
   name: string
-  billing: 'one-time' | 'subscription'
+  billing: 'one-time' | 'subscription' | 'listing'
   amount: number
   currency: string
   interval: 'month' | 'year'
@@ -29,6 +30,9 @@ export type Plan = {
   payer: 'customer' | 'provider'
   summary: string
   includes: string[]
+  durations: ListingDuration[]
+  requiresApproval: boolean
+  addressRequired: boolean
 }
 export type Area = {
   id: string
@@ -97,13 +101,16 @@ async function seed() {
     )
   })
 
-  // v2 (one-time, additive): a placeholder subscription plan + 3 hidden categories awaiting the client's details.
-  await once('__seeded_v2', async () => {
-    await PlanModel.updateOne({ slug: PLACEHOLDER_PLAN.slug }, { $setOnInsert: PLACEHOLDER_PLAN }, { upsert: true })
+  // v3 (one-time, additive): the client's 3 listing categories and their pay-per-ad plans. Replaces the
+  // hidden placeholders an earlier version seeded (new-category-1…3), but only while they're still untouched.
+  await once('__seeded_v3', async () => {
+    await CategoryModel.deleteMany({ slug: /^new-category-[123]$/, published: false })
+    if (!(await CategoryModel.exists({ plan: 'provider-subscription' }))) await PlanModel.deleteOne({ slug: 'provider-subscription', published: false })
+    await Promise.all(LISTING_PLANS.map((p, i) => PlanModel.updateOne({ slug: p.slug }, { $setOnInsert: { ...p, order: 10 + i } }, { upsert: true })))
     const last = await CategoryModel.findOne().sort({ order: -1 }).select('order').lean<{ order?: number }>()
     await Promise.all(
-      PLACEHOLDER_CATEGORIES.map((c, i) =>
-        CategoryModel.updateOne({ slug: c.slug }, { $setOnInsert: { ...c, order: (last?.order ?? 0) + 1 + i, published: false } }, { upsert: true }),
+      LISTING_CATEGORIES.map((c, i) =>
+        CategoryModel.updateOne({ slug: c.slug }, { $setOnInsert: { ...c, order: (last?.order ?? 0) + 1 + i, published: true } }, { upsert: true }),
       ),
     )
   })
@@ -196,7 +203,7 @@ function toArea(d: Lean): Area {
 }
 
 const defaultCategories = () =>
-  DEFAULT_CATEGORIES.map((c, i) => toCategory({ ...c, _id: `default-${c.slug}`, order: i, published: true }))
+  [...DEFAULT_CATEGORIES, ...LISTING_CATEGORIES].map((c, i) => toCategory({ ...c, _id: `default-${c.slug}`, order: i, published: true }))
 const defaultAreas = () =>
   DEFAULT_CITIES.map((c, i) => toArea({ ...c, _id: `default-${c.slug}`, country: 'CA', order: i, published: true }))
 
@@ -250,7 +257,7 @@ export const getContent = cache(<K extends ContentKey>(key: K) =>
 const toPlan = (d: Lean): Plan => ({
   slug: str(d.slug),
   name: str(d.name),
-  billing: d.billing === 'one-time' ? 'one-time' : 'subscription',
+  billing: d.billing === 'one-time' || d.billing === 'listing' ? d.billing : 'subscription',
   amount: Number(d.amount ?? 0),
   currency: str(d.currency),
   interval: d.interval === 'year' ? 'year' : 'month',
@@ -258,19 +265,77 @@ const toPlan = (d: Lean): Plan => ({
   payer: d.payer === 'customer' ? 'customer' : 'provider',
   summary: str(d.summary),
   includes: arr(d.includes),
+  durations: (Array.isArray(d.durations) ? (d.durations as Lean[]) : [])
+    .map((x) => ({ label: str(x.label), days: Number(x.days ?? 0), amount: Number(x.amount ?? 0) }))
+    .filter((x) => x.days > 0),
+  requiresApproval: d.requiresApproval === true,
+  addressRequired: d.addressRequired === true,
 })
 
 /** Published pricing plans. Categories without a plan use the site-wide connection fee. */
 export const getPlans = cache(() =>
-  read('plans', async () => (await PlanModel.find({ published: true }).sort({ order: 1, name: 1 }).lean()).map((d) => toPlan(d as Lean)), () => []),
+  read(
+    'plans',
+    async () => (await PlanModel.find({ published: true }).sort({ order: 1, name: 1 }).lean()).map((d) => toPlan(d as Lean)),
+    () => LISTING_PLANS.map((p) => toPlan({ ...p, _id: p.slug })),
+  ),
 )
 
 export const getPlan = cache(async (slug: string) => (slug ? (await getPlans()).find((p) => p.slug === slug) ?? null : null))
 
 export function formatPlanPrice(p: Plan) {
-  const price = `$${p.amount.toFixed(2)}${p.currency ? ` ${p.currency}` : ''}`
-  return p.billing === 'subscription' ? `${price} / ${p.interval}` : price
+  const money = (n: number) => `$${n.toFixed(2)}${p.currency ? ` ${p.currency}` : ''}`
+  if (p.billing === 'listing') {
+    const prices = p.durations.map((d) => d.amount)
+    const [min, max] = [Math.min(...prices, Infinity), Math.max(...prices, 0)]
+    if (max === 0) return 'Free'
+    return min === max ? `${money(max)} per ad` : `${money(min)} – ${money(max)} per ad`
+  }
+  return p.billing === 'subscription' ? `${money(p.amount)} / ${p.interval}` : money(p.amount)
 }
+
+export type PublicListing = {
+  id: string
+  title: string
+  description: string
+  photo: string
+  startDate: string
+  endDate: string
+  address: string
+  city: string
+  region: string
+  postalCode: string
+  contactName: string
+  phone: string
+}
+
+/** Live ads in a listing category: published, not hidden and not yet ended. No email addresses. */
+export const getListings = cache((categorySlug: string) =>
+  read(
+    'listings',
+    async () =>
+      (
+        await ListingModel.find({ category: categorySlug, status: 'published', published: { $ne: false }, endDate: { $gte: todayISO() } })
+          .sort({ startDate: 1, createdAt: -1 })
+          .select('-email -notes -paymentRef -amount')
+          .lean()
+      ).map((d) => ({
+        id: String(d._id),
+        title: d.title,
+        description: d.description ?? '',
+        photo: d.photo ?? '',
+        startDate: d.startDate,
+        endDate: d.endDate,
+        address: d.address ?? '',
+        city: d.city ?? '',
+        region: d.region ?? '',
+        postalCode: d.postalCode ?? '',
+        contactName: d.contactName ?? '',
+        phone: d.phone ?? '',
+      })),
+    (): PublicListing[] => [],
+  ),
+)
 
 export type PublicMapPoint = { id: string; name: string; category: string; categorySlug: string; city: string; region: string; lat: number; lng: number }
 

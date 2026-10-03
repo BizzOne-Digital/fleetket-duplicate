@@ -3,7 +3,7 @@ import { AdminHeader, Badge, EmptyState, Panel, formatDate } from '@/components/
 import { ButtonLink } from '@/components/ui/button'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/content'
-import { Category, City, Faq, Lead, StoredUpload, Subscriber, User } from '@/lib/models'
+import { Category, City, Faq, Lead, Listing, StoredUpload, Subscriber, User } from '@/lib/models'
 import { isEmailConfigured } from '@/lib/email'
 import { LEAD_TYPE_LABELS, type LeadType } from '@/lib/constants'
 
@@ -13,7 +13,7 @@ export default async function AdminDashboard() {
   const user = await requireAdmin()
   await db()
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent, liveSubscribers, pendingTaskers] = await Promise.all([
+  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent, liveSubscribers, pendingTaskers, adsToReview, unpaidAds] = await Promise.all([
     Lead.countDocuments({ status: 'new' }),
     Lead.countDocuments({ createdAt: { $gte: weekAgo } }),
     Lead.countDocuments(),
@@ -27,10 +27,13 @@ export default async function AdminDashboard() {
     Lead.find().sort({ createdAt: -1 }).limit(6).lean(),
     Subscriber.countDocuments({ status: { $in: ['active', 'trial'] } }),
     Subscriber.countDocuments({ status: 'pending' }),
+    Listing.countDocuments({ status: 'pending-review' }),
+    Listing.countDocuments({ status: 'awaiting-payment' }),
   ])
 
   const stats = [
     { label: 'New leads', value: newLeads, href: '/admin/leads?status=new', accent: newLeads > 0 },
+    { label: 'Ads to approve', value: adsToReview, href: '/admin/listings', accent: adsToReview > 0, note: unpaidAds ? `${unpaidAds} awaiting payment` : undefined },
     { label: 'Leads this week', value: weekLeads, href: '/admin/leads' },
     { label: 'Published categories', value: categories, href: '/admin/categories', note: hiddenCategories ? `${hiddenCategories} hidden` : undefined },
     { label: 'Active subscribers', value: liveSubscribers, href: '/admin/subscribers', accent: pendingTaskers > 0, note: pendingTaskers ? `${pendingTaskers} tasker sign-up${pendingTaskers === 1 ? '' : 's'} awaiting approval` : `${areas} areas served` },
@@ -50,7 +53,7 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-forest-900/10 bg-forest-900/10 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-forest-900/10 bg-forest-900/10 lg:grid-cols-5">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="group bg-white p-5 transition-colors hover:bg-paper">
             <p className="text-sm text-slate">{s.label}</p>

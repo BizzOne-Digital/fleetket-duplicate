@@ -76,13 +76,19 @@ proxy.ts           Optimistic redirect of signed-out visitors away from /admin a
 ## Pricing plans, subscribers and maps
 
 - **Pricing plans** (`/admin/plans`): payment strategies a category can use instead of the default connection fee (Admin → Pricing page). Each plan is *one-time* or *subscription* (monthly/yearly, optional free trial), paid by the customer or the provider. Pick a category's plan in its editor; leave it empty to keep the default.
-- **New categories**: three hidden placeholders (`new-category-1…3`) are seeded on the placeholder plan *Provider subscription (to be confirmed)*. When the client confirms them, rename and describe each one, set the plan's price, then publish both. They're added once (`__seeded_v2`), so deleting one won't bring it back.
+- **Ad categories (pay per ad)**: *Open House - Realtors*, *Garage Sale* and *Free Ads - Lost Pets & More* use `listing` plans. People post an ad with a start and end date at `/services/<category>/post`; the price is the cheapest of the plan's **ad lengths** that covers those dates:
+  - Open house: one house address per ad, up to 1 month, $9.99 CAD. Several houses → one ad each.
+  - Garage sale: 1 day / 1 week / 1 month, $9.99 maximum. **Day ($2.99) and week ($5.99) prices are placeholders: confirm with the client** (Admin → Pricing plans).
+  - Free ads: $0, **checked by an admin first**: the admin is emailed, opens *Admin → Ads*, sets the status to *published*, and the poster is emailed that it's live.
+  - Paid ads go to **Stripe Checkout** and publish themselves once paid (return page + `/api/stripe/webhook` backup; the amount is re-checked). Without `STRIPE_SECRET_KEY` they're saved as *awaiting payment* and the admin is emailed to take payment manually.
+  - Ads disappear from the site after their end date. Abandoned checkouts stay in Admin → Ads as *awaiting payment*.
+  - Seeded once (`__seeded_v3`), which also removed the earlier hidden placeholders. Pricing rule check: `node lib/listings.check.ts`.
 - **Become A Tasker** (`/become-a-tasker`): creates a provider account plus one *pending* subscriber per chosen category (skills, hours, address) and a lead. Taskers are hidden until an admin sets them to *active* or *trial*.
 - **Subscribers** (`/admin/subscribers`): service providers with category, sub-services, plan, status (pending, active, trial, past-due, paused, cancelled), hours, address and a map pin placed by clicking the map. Sign-ups don't geocode the address, so **set the pin** when approving or the tasker won't show on the map. Contact details stay private.
 - **Requests**: customers choose taskers on `/services/<category>/<sub>` and send a request; it's stored as a *service-request* lead with the chosen taskers in the notes.
 - **Maps**: `/map` (public) shows subscribers that are *published* and *active or trial*, with coordinates rounded to ~1 km before they reach the browser. `/admin/map` shows everyone at their exact pin, with inactive statuses muted.
 - **Map tiles**: default to OpenStreetMap's public tiles, which are for light use only. Before launch traffic, set `NEXT_PUBLIC_MAP_TILE_URL` (and `_ATTRIBUTION`) to a keyed provider such as MapTiler or Stadia.
-- *Not built yet:* charging subscriptions. Plans describe pricing and subscribers record status, but there's no payment-gateway integration; connect it to the existing gateway once its details are confirmed. The live site uses Stripe (CAD) checkout and subscription sessions; reuse those keys and price IDs.
+- *Not built yet:* charging **tasker subscriptions**. Plans describe pricing and subscribers record status; ad payments use Stripe Checkout (above), and the same keys can drive subscriptions later. Ads are not shown on the map (sign-ups aren't geocoded).
 
 ## Images
 
@@ -111,5 +117,7 @@ Every form (contact, service request, provider listing) is validated with Zod on
 - [ ] Have counsel review the Privacy Policy and Terms (Admin → Legal); they were restructured from the previous site's policy
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the live domain and configure SMTP
 - [ ] Images are loaded from `api.fleeket.com` / `www.fleeket.com`. Upload them to the Media library before the old server is retired
-- [ ] Add the client's 3 new categories (rename the hidden placeholders) and price their plan
+- [ ] Confirm the garage sale **day and week prices** (Admin → Pricing plans → Garage sale ad)
+- [ ] Add `STRIPE_SECRET_KEY` (live account) and the webhook `https://www.fleeket.com/api/stripe/webhook` with its `STRIPE_WEBHOOK_SECRET`
+- [ ] Configure SMTP: free-ad approvals and "your ad is live" emails depend on it
 - [ ] Low-RAM build machine? `NEXT_BUILD_CPUS=2 pnpm build`

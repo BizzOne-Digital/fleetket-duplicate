@@ -1,6 +1,6 @@
 import 'server-only'
 import mongoose, { Schema, model, models, type InferSchemaType, type Model } from 'mongoose'
-import { LEAD_STATUSES, LEAD_TYPES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, ROLES, SUBSCRIBER_STATUSES, UPLOAD_FOLDERS } from './constants'
+import { LEAD_STATUSES, LEAD_TYPES, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, ROLES, SUBSCRIBER_STATUSES, UPLOAD_FOLDERS } from './constants'
 
 const faqItem = new Schema({ q: { type: String, required: true }, a: { type: String, required: true } }, { _id: false })
 
@@ -56,6 +56,15 @@ const planSchema = new Schema(
     payer: { type: String, enum: PLAN_PAYERS, default: 'provider' },
     summary: { type: String, default: '' },
     includes: { type: [String], default: [] },
+    /** billing = listing: how long an ad can run and what each length costs (the cheapest option that covers it applies). */
+    durations: {
+      type: [new Schema({ label: String, days: Number, amount: Number }, { _id: false })],
+      default: [],
+    },
+    /** billing = listing: ads wait for an admin to publish them (e.g. free ads). */
+    requiresApproval: { type: Boolean, default: false },
+    /** billing = listing: the poster must give a street address (open houses, garage sales). */
+    addressRequired: { type: Boolean, default: false },
     published: { type: Boolean, default: false },
     order: { type: Number, default: 0 },
   },
@@ -94,6 +103,41 @@ const subscriberSchema = new Schema(
   { timestamps: true },
 )
 subscriberSchema.index({ status: 1, published: 1 })
+
+/** An ad posted in a listing category: an open house, a garage sale or a free ad (lost pet…). */
+const listingSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    category: { type: String, required: true, index: true },
+    status: { type: String, enum: LISTING_STATUSES, default: 'pending-review' },
+    /** YYYY-MM-DD, inclusive. Strings so “ends today” never shifts with the server's time zone. */
+    startDate: { type: String, required: true },
+    endDate: { type: String, required: true },
+    description: { type: String, default: '' },
+    photo: { type: String, default: '' },
+    address: { type: String, default: '' },
+    city: { type: String, default: '' },
+    region: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    country: { type: String, default: '' },
+    contactName: { type: String, default: '' },
+    /** Private — used for payment receipts and approval emails. */
+    email: { type: String, default: '', lowercase: true },
+    /** Shown on the ad. */
+    phone: { type: String, default: '' },
+    amount: { type: Number, default: 0 },
+    currency: { type: String, default: 'CAD' },
+    /** Stripe Checkout session id once paid. */
+    paymentRef: { type: String, default: '' },
+    paidAt: { type: Date },
+    notes: { type: String, default: '' },
+    /** Admin hide switch, on top of status. */
+    published: { type: Boolean, default: true },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+)
+listingSchema.index({ category: 1, status: 1, endDate: 1 })
 
 const citySchema = new Schema(
   {
@@ -194,6 +238,7 @@ function getModel<T extends Schema>(name: string, schema: T) {
 export const Category = getModel('Category', categorySchema)
 export const Plan = getModel('Plan', planSchema)
 export const Subscriber = getModel('Subscriber', subscriberSchema)
+export const Listing = getModel('Listing', listingSchema)
 export const City = getModel('City', citySchema)
 export const Faq = getModel('Faq', faqSchema)
 export const Lead = getModel('Lead', leadSchema)

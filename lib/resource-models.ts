@@ -1,11 +1,11 @@
 import 'server-only'
 import type { Model } from 'mongoose'
-import { Category, City, Faq, Plan, Subscriber } from './models'
+import { Category, City, Faq, Listing, Plan, Subscriber } from './models'
 import type { ResourceKey } from './resources'
 import type { FieldSpec } from './fields'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const RESOURCE_MODELS: Record<ResourceKey, Model<any>> = { categories: Category, cities: City, faqs: Faq, plans: Plan, subscribers: Subscriber }
+export const RESOURCE_MODELS: Record<ResourceKey, Model<any>> = { categories: Category, cities: City, faqs: Faq, plans: Plan, subscribers: Subscriber, listings: Listing }
 
 /** Fill `reference` fields with the current items of the resource they point at. */
 export async function withReferenceOptions(fields: FieldSpec[]): Promise<FieldSpec[]> {

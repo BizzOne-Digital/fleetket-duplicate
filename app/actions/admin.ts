@@ -13,6 +13,7 @@ import { CONTENT_DEFS, isContentKey } from '@/lib/content-schema'
 import { canManageUsers, LEAD_STATUSES, ROLES } from '@/lib/constants'
 import { passwordSchema, flattenErrors } from '@/lib/schemas'
 import { deleteReplacedUploads, deleteUploadByUrl } from '@/lib/uploads'
+import { emailListingLive } from '@/lib/listing-service'
 
 export type ActionResult = { ok: boolean; message: string; errors?: Record<string, string>; id?: string }
 
@@ -53,6 +54,8 @@ export async function saveResource(key: string, id: string | null, input: unknow
     if (!before) return bad('Item not found')
     await model.updateOne({ _id: id }, { $set: data })
     await deleteReplacedUploads(before, data)
+    // Approving an ad (e.g. a free ad) tells the poster it's live.
+    if (key === 'listings' && before.status !== 'published' && data.status === 'published') await emailListingLive({ ...before, ...data } as Parameters<typeof emailListingLive>[0])
     refreshSite()
     return { ok: true, message: `${def.singular} saved`, id }
   }

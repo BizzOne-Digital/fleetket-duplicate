@@ -4,7 +4,7 @@ export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'converted', 'clo
 export const LEAD_TYPES = ['contact', 'provider', 'service-request'] as const
 export const ROLES = ['owner', 'admin', 'editor', 'provider', 'customer'] as const
 export const ADMIN_ROLES = ['owner', 'admin', 'editor'] as const
-export const UPLOAD_FOLDERS = ['products', 'gallery', 'pages', 'misc'] as const
+export const UPLOAD_FOLDERS = ['products', 'gallery', 'pages', 'misc', 'listings'] as const
 export const UPLOAD_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 export const UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
@@ -20,12 +20,15 @@ export const CONTACT_REASONS = [
   'Something else',
 ] as const
 
-export const PLAN_BILLING = ['one-time', 'subscription'] as const
+/** `listing` = a pay-per-ad category (open house, garage sale, free ads) priced by how long the ad runs. */
+export const PLAN_BILLING = ['one-time', 'subscription', 'listing'] as const
 export const PLAN_INTERVALS = ['month', 'year'] as const
 export const PLAN_PAYERS = ['customer', 'provider'] as const
 export const SUBSCRIBER_STATUSES = ['pending', 'active', 'trial', 'past-due', 'paused', 'cancelled'] as const
 /** Subscribers in these states appear on the public map (if also marked public). */
 export const LIVE_SUBSCRIBER_STATUSES = ['active', 'trial'] as const
+/** Ads posted in listing categories. Only `published` ads that haven't ended are shown publicly. */
+export const LISTING_STATUSES = ['awaiting-payment', 'pending-review', 'published', 'rejected', 'cancelled'] as const
 
 export const CATEGORY_GROUPS = [
   'Home & Property',

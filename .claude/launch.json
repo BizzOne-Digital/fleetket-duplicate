@@ -1,7 +1,54 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "fleeket", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "dev"], "port": 3000, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } },
-    { "name": "fleeket-prod", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "start", "-p", "3100"], "port": 3100, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } }
+    {
+      "name": "fleeket",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "pnpm@latest",
+        "dev"
+      ],
+      "port": 3000,
+      "env": {
+        "TEMP": "E:\fleeket-dev\tmp",
+        "TMP": "E:\fleeket-dev\tmp"
+      }
+    },
+    {
+      "name": "fleeket-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "pnpm@latest",
+        "start",
+        "-p",
+        "3100"
+      ],
+      "port": 3100,
+      "env": {
+        "TEMP": "E:\fleeket-dev\tmp",
+        "TMP": "E:\fleeket-dev\tmp"
+      }
+    },
+    {
+      "name": "fleeket-test",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "pnpm@latest",
+        "start",
+        "-p",
+        "3200"
+      ],
+      "port": 3200,
+      "env": {
+        "TEMP": "E:\fleeket-dev\tmp",
+        "TMP": "E:\fleeket-dev\tmp",
+        "MONGODB_URI": "mongodb://127.0.0.1:27999/",
+        "MONGODB_DB": "fleeket-e2e",
+        "STRIPE_WEBHOOK_SECRET": "whsec_e2e_local_only"
+      }
+    }
   ]
 }

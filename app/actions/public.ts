@@ -1,14 +1,19 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { isValidObjectId } from 'mongoose'
-import { db, getCategories, getContent } from '@/lib/content'
+import { db, getCategories, getCategory, getPlan } from '@/lib/content'
 import { isDbConfigured } from '@/lib/db'
-import { Lead, Subscriber, User } from '@/lib/models'
-import { contactSchema, flattenErrors, loginSchema, memberSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
+import { Lead, Listing, Subscriber, User } from '@/lib/models'
+import { contactSchema, flattenErrors, listingSchema, loginSchema, memberSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
 import { createSession, destroySession, hashPassword, verifyPassword } from '@/lib/auth'
-import { sendEmail } from '@/lib/email'
+import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
+import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listings'
 import { rateLimited } from '@/lib/rate-limit'
+import { createCheckoutSession, isStripeConfigured } from '@/lib/stripe'
+import { storeImage } from '@/lib/uploads'
 import { isAdminRole, LEAD_TYPE_LABELS, WEEKDAYS, type LeadType, type Role } from '@/lib/constants'
 
 const NOT_CONFIGURED: FormState = {
@@ -25,16 +30,8 @@ const fd = (form: FormData) => {
   return o
 }
 
-async function notify(type: LeadType, fields: Record<string, string>) {
-  const site = await getContent('site')
-  const to = site.notifyEmail || site.contactEmail
-  if (!to) return
-  const body = Object.entries(fields)
-    .filter(([, v]) => v)
-    .map(([k, v]) => `${k}: ${v}`)
-    .join('\n')
-  await sendEmail({ to, subject: `New ${LEAD_TYPE_LABELS[type].toLowerCase()} — ${fields.Name}`, text: body, replyTo: fields.Email })
-}
+const notify = (type: LeadType, fields: Record<string, string>) =>
+  notifyAdmin(`New ${LEAD_TYPE_LABELS[type].toLowerCase()} — ${fields.Name}`, fields, fields.Email)
 
 export async function submitContact(_prev: FormState, form: FormData): Promise<FormState> {
   const parsed = contactSchema.safeParse(fd(form))
@@ -176,6 +173,92 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
   await notify('provider', { Name: profile.name, Email: profile.email, Phone: profile.phone, Skills: skillNames.join(' | '), Area: [profile.city, profile.region].filter(Boolean).join(', ') })
   await createSession(String(user._id), 'provider')
   redirect('/account?welcome=tasker')
+}
+
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024
+const MAX_DAYS_AHEAD = 90
+
+/**
+ * Post an ad in a listing category. Paid ads go to Stripe Checkout and publish once paid
+ * (see lib/listing-service.ts); free ads wait for an admin, who is emailed straight away.
+ */
+export async function submitListing(_prev: FormState, form: FormData): Promise<FormState> {
+  const parsed = listingSchema.safeParse(fd(form))
+  if (!parsed.success) return { ok: false, message: CHECK_FIELDS, errors: flattenErrors(parsed.error) }
+  if (!isDbConfigured) return NOT_CONFIGURED
+  if (await rateLimited('listing', 6, 60 * 60_000)) return TOO_MANY
+
+  const { website: _hp, terms: _t, ...data } = parsed.data
+  const category = await getCategory(data.category)
+  const plan = category ? await getPlan(category.plan) : null
+  if (!category || plan?.billing !== 'listing') return { ok: false, message: 'Ads can’t be posted in that category right now.' }
+
+  const errors: Record<string, string> = {}
+  const today = todayISO()
+  const latestStart = todayISO(new Date(Date.now() + MAX_DAYS_AHEAD * 86_400_000))
+  if (data.startDate < today) errors.startDate = 'The start date can’t be in the past'
+  else if (data.startDate > latestStart) errors.startDate = `Ads can be booked up to ${MAX_DAYS_AHEAD} days ahead`
+  const quote = quoteListing(plan.durations, data.startDate, data.endDate)
+  if (!quote && !errors.startDate) errors.endDate = data.endDate < data.startDate ? 'The end date must be on or after the start date' : `Ads can run for up to ${maxListingDays(plan.durations)} days`
+  if (plan.addressRequired && data.address.length < 5) errors.address = 'Please enter the street address'
+
+  const photo = form.get('photo')
+  let photoUrl = ''
+  if (!Object.keys(errors).length && photo instanceof File && photo.size > 0) {
+    const stored = await storeImage(photo, 'listings', { maxBytes: PHOTO_MAX_BYTES, meta: { alt: data.title.slice(0, 300), title: data.title.slice(0, 200) } })
+    if ('error' in stored) errors.photo = stored.error
+    else photoUrl = stored.url
+  }
+  if (Object.keys(errors).length || !quote) return { ok: false, message: CHECK_FIELDS, errors }
+
+  const paid = quote.amount > 0
+  const status = paid ? 'awaiting-payment' : plan.requiresApproval ? 'pending-review' : 'published'
+  await db()
+  const listing = await Listing.create({ ...data, photo: photoUrl, amount: quote.amount, currency: plan.currency || 'CAD', status })
+  const summary = {
+    Ad: data.title,
+    Category: category.name,
+    Dates: `${data.startDate} → ${data.endDate} (${quote.days} day${quote.days === 1 ? '' : 's'}, ${quote.label})`,
+    Address: [data.address, data.city, data.region, data.postalCode].filter(Boolean).join(', '),
+    Price: formatMoney(quote.amount, plan.currency || 'CAD'),
+    Contact: `${data.contactName} <${data.email}> ${data.phone}`,
+    Description: data.description,
+    Admin: adminListingUrl(listing._id),
+  }
+
+  if (!paid) {
+    if (status === 'published') {
+      revalidatePath(`/services/${category.slug}`)
+      return { ok: true, message: 'Your ad is live. Thank you for posting on Fleeket!' }
+    }
+    await notifyAdmin(`Free ad to approve — ${data.title}`, summary, data.email)
+    return { ok: true, message: 'Thank you! Our team will check your ad and email you as soon as it’s live.' }
+  }
+
+  if (!isStripeConfigured) {
+    await notifyAdmin(`Ad awaiting payment — ${data.title}`, { ...summary, Note: 'Online payment is not set up yet — contact the poster to take payment, then publish the ad.' }, data.email)
+    return { ok: true, message: `Thank you! We’ve received your ad. Our team will contact you about the ${formatMoney(quote.amount, plan.currency || 'CAD')} payment, then put it live.` }
+  }
+
+  const h = await headers()
+  const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('x-forwarded-host') ?? h.get('host')}`
+  let checkoutUrl: string | null = null
+  try {
+    const session = await createCheckoutSession({
+      listingId: String(listing._id),
+      name: `${plan.name}: ${data.title} (${data.startDate} → ${data.endDate})`.slice(0, 250),
+      amount: quote.amount,
+      currency: plan.currency || 'CAD',
+      email: data.email,
+      successUrl: `${origin}/api/listings/confirm?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${origin}/services/${category.slug}/post?done=cancelled`,
+    })
+    checkoutUrl = session.url
+  } catch (err) {
+    console.error('[listing] checkout failed', err)
+  }
+  if (!checkoutUrl) return { ok: false, message: 'We couldn’t open the payment page just now. Please try again in a moment.' }
+  redirect(checkoutUrl)
 }
 
 export async function login(_prev: FormState, form: FormData): Promise<FormState> {

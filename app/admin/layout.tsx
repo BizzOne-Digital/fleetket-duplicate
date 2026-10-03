@@ -2,7 +2,7 @@ import { AdminSidebar } from '@/components/admin/sidebar'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/content'
 import { isDbConfigured } from '@/lib/db'
-import { Lead } from '@/lib/models'
+import { Lead, Listing } from '@/lib/models'
 import { canManageUsers } from '@/lib/constants'
 import { noIndexMetadata } from '@/lib/seo'
 
@@ -23,11 +23,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const user = await requireAdmin()
   await db()
-  const newLeads = await Lead.countDocuments({ status: 'new' })
+  const [leads, ads] = await Promise.all([Lead.countDocuments({ status: 'new' }), Listing.countDocuments({ status: 'pending-review' })])
 
   return (
     <div className="surface-light min-h-screen bg-paper text-forest-900 lg:flex">
-      <AdminSidebar user={user} newLeads={newLeads} canManage={canManageUsers(user.role)} />
+      <AdminSidebar user={user} badges={{ leads, ads }} canManage={canManageUsers(user.role)} />
       <main id="main" className="min-w-0 flex-1 px-5 py-8 md:px-8 lg:py-10">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>

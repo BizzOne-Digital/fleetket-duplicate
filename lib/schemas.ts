@@ -73,6 +73,26 @@ export const taskerSchema = z
   })
   .refine(passwordsMatch, mismatch)
 
+const isoDate = (msg: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg)
+
+/** Post an ad in a listing category (open house, garage sale, free ad). Price and dates are re-checked on the server. */
+export const listingSchema = z.object({
+  category: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(4, 'Please add a short title').max(120),
+  description: z.string().trim().min(10, 'Please describe your ad (at least 10 characters)').max(3000),
+  startDate: isoDate('Choose a start date'),
+  endDate: isoDate('Choose an end date'),
+  address: text(200),
+  city: z.string().trim().min(2, 'Please enter the city').max(80),
+  region: text(60),
+  postalCode: text(20),
+  contactName: name,
+  email,
+  phone,
+  terms: z.literal(true, 'Please read and accept the Terms & Conditions'),
+  website: honeypot,
+})
+
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, 'Enter your password').max(200),

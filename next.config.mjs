@@ -19,7 +19,11 @@ const nextConfig = {
   },
   serverExternalPackages: ['mongoose'],
   // Low-RAM build machines: NEXT_BUILD_CPUS=2 pnpm build
-  ...(process.env.NEXT_BUILD_CPUS && { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } }),
+  experimental: {
+    // Ad photos (5 MB max) are posted through a server action.
+    serverActions: { bodySizeLimit: '6mb' },
+    ...(process.env.NEXT_BUILD_CPUS && { cpus: Number(process.env.NEXT_BUILD_CPUS) }),
+  },
   async redirects() {
     // Legacy routes from the previous Fleeket site.
     return [

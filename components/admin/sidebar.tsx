@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  BadgeDollarSign, CreditCard, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Users, X,
+  BadgeDollarSign, CreditCard, Megaphone, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Users, X,
 } from 'lucide-react'
 import { logout } from '@/app/actions/public'
 import { Logo } from '@/components/live/logo'
@@ -13,9 +13,10 @@ import { cn } from '@/lib/utils'
 const GROUPS = [
   { label: 'Overview', items: [{ href: '/admin', label: 'Dashboard', icon: Gauge, exact: true }, { href: '/admin/leads', label: 'Leads & messages', icon: Inbox, badge: 'leads' }] },
   {
-    label: 'Subscribers',
+    label: 'Subscribers & ads',
     items: [
       { href: '/admin/subscribers', label: 'Subscribers', icon: Store },
+      { href: '/admin/listings', label: 'Ads', icon: Megaphone, badge: 'ads' },
       { href: '/admin/map', label: 'Subscriber map', icon: MapIcon },
       { href: '/admin/plans', label: 'Pricing plans', icon: CreditCard },
     ],
@@ -41,7 +42,7 @@ const GROUPS = [
   },
 ]
 
-export function AdminSidebar({ user, newLeads, canManage }: { user: { name: string; email: string; role: string }; newLeads: number; canManage: boolean }) {
+export function AdminSidebar({ user, badges, canManage }: { user: { name: string; email: string; role: string }; badges: Record<string, number>; canManage: boolean }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [pathname])
@@ -71,8 +72,8 @@ export function AdminSidebar({ user, newLeads, canManage }: { user: { name: stri
                     >
                       <Icon aria-hidden className="size-4" strokeWidth={1.6} />
                       <span className="flex-1">{item.label}</span>
-                      {'badge' in item && newLeads > 0 && (
-                        <span className="rounded-sm bg-lime px-1.5 py-0.5 text-[0.6875rem] font-semibold text-forest-900">{newLeads}</span>
+                      {'badge' in item && badges[item.badge ?? ''] > 0 && (
+                        <span className="rounded-sm bg-lime px-1.5 py-0.5 text-[0.6875rem] font-semibold text-forest-900">{badges[item.badge ?? '']}</span>
                       )}
                     </Link>
                   </li>

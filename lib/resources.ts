@@ -1,4 +1,4 @@
-import { CATEGORY_GROUPS, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, SUBSCRIBER_STATUSES } from './constants'
+import { CATEGORY_GROUPS, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, SUBSCRIBER_STATUSES } from './constants'
 import { seoFields, type FieldSpec } from './fields'
 
 export type ResourceDef = {
@@ -123,7 +123,7 @@ export const RESOURCE_DEFS = {
     fields: [
       { name: 'name', label: 'Plan name', type: 'text', required: true, max: 80 },
       slugField,
-      { name: 'billing', label: 'Billing', type: 'select', options: PLAN_BILLING, help: 'One-time fee per connection, or a recurring subscription.' },
+      { name: 'billing', label: 'Billing', type: 'select', options: PLAN_BILLING, help: 'One-time fee per connection, a recurring subscription, or “listing” — pay per ad, priced by how long it runs.' },
       { name: 'amount', label: 'Price', type: 'number', step: 0.01, min: 0 },
       { name: 'currency', label: 'Currency code', type: 'text', max: 3, help: 'e.g. CAD or USD. Leave blank to show the amount only.' },
       { name: 'interval', label: 'Billing interval', type: 'select', options: PLAN_INTERVALS, help: 'Used for subscriptions only.' },
@@ -131,6 +131,20 @@ export const RESOURCE_DEFS = {
       { name: 'payer', label: 'Paid by', type: 'select', options: PLAN_PAYERS },
       { name: 'summary', label: 'Summary', type: 'textarea', rows: 2, max: 300, help: 'One or two sentences shown with the price.' },
       { name: 'includes', label: 'What is included (one per line)', type: 'lines' },
+      {
+        name: 'durations',
+        label: 'Ad lengths and prices (listing plans)',
+        type: 'repeater',
+        itemLabel: 'Option',
+        help: 'The poster picks start and end dates; the cheapest option that covers them is charged. Price 0 = free.',
+        fields: [
+          { name: 'label', label: 'Label', type: 'text', required: true, max: 40, help: 'e.g. 1 day, 1 week, Up to 1 month' },
+          { name: 'days', label: 'Up to (days)', type: 'number', min: 1 },
+          { name: 'amount', label: 'Price', type: 'number', step: 0.01, min: 0 },
+        ],
+      },
+      { name: 'requiresApproval', label: 'Ads need admin approval before they go live (listing plans)', type: 'checkbox' },
+      { name: 'addressRequired', label: 'Street address required (listing plans)', type: 'checkbox' },
       { name: 'published', label: 'Show on the public site', type: 'checkbox' },
     ],
   },
@@ -175,6 +189,40 @@ export const RESOURCE_DEFS = {
       },
       { name: 'notes', label: 'Internal notes', type: 'textarea', rows: 3 },
       { name: 'published', label: 'Show on the public site and map', type: 'checkbox' },
+    ],
+  },
+  listings: {
+    title: 'Ads',
+    singular: 'Ad',
+    publicPath: '/#services',
+    hasSlug: false,
+    searchKeys: ['title', 'category', 'city', 'email', 'status'],
+    columns: [
+      { key: 'title', label: 'Ad' },
+      { key: 'category', label: 'Category' },
+      { key: 'status', label: 'Status' },
+      { key: 'endDate', label: 'Ends' },
+    ],
+    fields: [
+      { name: 'title', label: 'Title', type: 'text', required: true, max: 120 },
+      { name: 'category', label: 'Category', type: 'reference', resource: 'categories', emptyLabel: 'Not set' },
+      { name: 'status', label: 'Status', type: 'select', options: LISTING_STATUSES, help: 'Set a free ad to published to put it live — the poster is emailed. Paid ads publish themselves once paid.' },
+      { name: 'startDate', label: 'Starts (YYYY-MM-DD)', type: 'text', required: true, max: 10 },
+      { name: 'endDate', label: 'Ends (YYYY-MM-DD)', type: 'text', required: true, max: 10, help: 'The ad disappears from the site after this day.' },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 5, max: 3000 },
+      { name: 'photo', label: 'Photo', type: 'image' },
+      { name: 'address', label: 'Street address', type: 'text', max: 200 },
+      { name: 'city', label: 'City', type: 'text', max: 80 },
+      { name: 'region', label: 'Province / state', type: 'text', max: 60 },
+      { name: 'postalCode', label: 'Postal code', type: 'text', max: 20 },
+      { name: 'country', label: 'Country', type: 'text', max: 60 },
+      { name: 'contactName', label: 'Contact name', type: 'text', max: 120 },
+      { name: 'email', label: 'Email (private)', type: 'text', max: 200 },
+      { name: 'phone', label: 'Phone (shown on the ad)', type: 'text', max: 40 },
+      { name: 'amount', label: 'Amount charged', type: 'number', step: 0.01, min: 0 },
+      { name: 'paymentRef', label: 'Stripe payment reference', type: 'text', max: 200 },
+      { name: 'notes', label: 'Internal notes', type: 'textarea', rows: 3 },
+      { name: 'published', label: 'Visible (untick to hide without changing the status)', type: 'checkbox' },
     ],
   },
 } satisfies Record<string, ResourceDef>

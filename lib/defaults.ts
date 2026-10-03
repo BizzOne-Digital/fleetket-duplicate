@@ -29,34 +29,94 @@ export type CategorySeed = {
 export const DEFAULT_CATEGORIES: CategorySeed[] = LIVE_CATEGORIES
 
 /**
- * Placeholders for the 3 categories the client will confirm. Seeded hidden (unpublished) and on the
- * placeholder subscription plan — rename, describe, price and publish them in the admin.
+ * The 3 listing categories the client confirmed (Oct 2026): people post an ad for a set time instead of
+ * subscribing as a tasker. Each uses a `listing` plan — price by how long the ad runs — editable in Admin → Pricing plans.
  */
-export const PLACEHOLDER_PLAN = {
-  name: 'Provider subscription (to be confirmed)',
-  slug: 'provider-subscription',
-  billing: 'subscription',
-  amount: 0,
-  currency: '',
-  interval: 'month',
-  trialDays: 0,
-  payer: 'provider',
-  summary: 'Placeholder — set the price, billing interval and inclusions once confirmed, then publish.',
-  includes: [],
-  published: false,
-}
+export const LISTING_PLANS = [
+  {
+    name: 'Open house ad',
+    slug: 'open-house',
+    billing: 'listing',
+    amount: 9.99,
+    currency: 'CAD',
+    payer: 'provider',
+    summary: 'One house address per ad, live for as long as you choose — up to one month. Selling several houses? Post one ad per address.',
+    includes: ['House address and photo', 'Open house dates', 'Your contact number'],
+    durations: [{ label: 'Up to 1 month', days: 30, amount: 9.99 }],
+    requiresApproval: false,
+    addressRequired: true,
+    published: true,
+  },
+  {
+    name: 'Garage sale ad',
+    slug: 'garage-sale',
+    billing: 'listing',
+    amount: 9.99,
+    currency: 'CAD',
+    payer: 'provider',
+    summary: 'Run your garage sale ad for a day, a week or the full month — never more than $9.99.',
+    includes: ['Sale address and photo', 'Sale dates', 'Your contact number'],
+    // ponytail: day and week prices are placeholders until the client confirms them (Admin → Pricing plans).
+    durations: [
+      { label: '1 day', days: 1, amount: 2.99 },
+      { label: '1 week', days: 7, amount: 5.99 },
+      { label: '1 month', days: 30, amount: 9.99 },
+    ],
+    requiresApproval: false,
+    addressRequired: true,
+    published: true,
+  },
+  {
+    name: 'Free ad',
+    slug: 'free-ad',
+    billing: 'listing',
+    amount: 0,
+    currency: 'CAD',
+    payer: 'customer',
+    summary: 'Post a lost pet or anything else for free. Our team checks every ad before it goes live.',
+    includes: ['Photo and description', 'Live for up to one month', 'Reviewed by our team'],
+    durations: [{ label: 'Up to 1 month', days: 30, amount: 0 }],
+    requiresApproval: true,
+    addressRequired: false,
+    published: true,
+  },
+]
 
-export const PLACEHOLDER_CATEGORIES: (CategorySeed & { plan: string })[] = [1, 2, 3].map((n) => ({
-  name: `New category ${n}`,
-  slug: `new-category-${n}`,
-  group: 'Business & Local',
-  icon: 'sparkles',
-  description: 'Placeholder — replace with the confirmed category details.',
-  image: '',
-  imageAlt: '',
-  subServices: [],
-  plan: PLACEHOLDER_PLAN.slug,
-}))
+export const LISTING_CATEGORIES: (CategorySeed & { plan: string })[] = [
+  {
+    name: 'Open House - Realtors',
+    slug: 'open-house',
+    group: 'Home & Property',
+    icon: 'home',
+    description: 'Realtors: advertise your open house. One ad per house address, live for the dates you choose — up to one month for $9.99.',
+    image: img('photo-1568605114967-8130f3a36994'),
+    imageAlt: 'House for sale at dusk',
+    subServices: [],
+    plan: 'open-house',
+  },
+  {
+    name: 'Garage Sale',
+    slug: 'garage-sale',
+    group: 'Business & Local',
+    icon: 'tag',
+    description: 'Tell your neighbours about your garage sale. Run your ad for a day, a week or the whole month — $9.99 maximum.',
+    image: img('photo-1556905055-8f358a7a47b2'),
+    imageAlt: 'Second-hand clothes laid out for sale',
+    subServices: [],
+    plan: 'garage-sale',
+  },
+  {
+    name: 'Free Ads - Lost Pets & More',
+    slug: 'free-ads',
+    group: 'Business & Local',
+    icon: 'heart',
+    description: 'Lost a pet? Giving something away? Post a free ad. Every ad is checked by our team before it goes live.',
+    image: img('photo-1543466835-00a7907e9de1'),
+    imageAlt: 'A beagle looking at the camera',
+    subServices: [],
+    plan: 'free-ad',
+  },
+]
 
 type CitySeed = { name: string; slug: string; kind: 'province' | 'territory'; regionCode: string; description: string; image?: string }
 

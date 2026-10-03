@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Breadcrumb, OffersBanner, TitleBand } from '@/components/live/blocks'
 import { SubServiceCard, offerFor } from '@/components/live/category'
+import { ListingsBoard } from '@/components/live/listings'
 import { JsonLd } from '@/components/site/json-ld'
-import { getCategories, getCategory, getCategoryProviders, getPlan } from '@/lib/content'
+import { getCategories, getCategory, getCategoryProviders, getListings, getPlan } from '@/lib/content'
 import { absoluteUrl, buildMetadata } from '@/lib/seo'
 
 export async function generateStaticParams() {
@@ -26,7 +27,7 @@ export default async function CategoryPage({ params }: PageProps<'/services/[slu
   const { slug } = await params
   const category = await getCategory(slug)
   if (!category) notFound()
-  const [providers, plan] = await Promise.all([getCategoryProviders(category.slug), getPlan(category.plan)])
+  const [providers, plan, listings] = await Promise.all([getCategoryProviders(category.slug), getPlan(category.plan), getListings(category.slug)])
   const offer = await offerFor(plan)
 
   return (
@@ -54,7 +55,9 @@ export default async function CategoryPage({ params }: PageProps<'/services/[slu
       <section className="py-8">
         <div className="container-x grid gap-5">
           <Breadcrumb items={[{ label: category.name, href: `/services/${category.slug}` }]} />
-          {category.subServices.length ? (
+          {plan?.billing === 'listing' ? (
+            <ListingsBoard category={category} plan={plan} listings={listings} />
+          ) : category.subServices.length ? (
             <ul className="flex flex-wrap justify-center gap-5">
               {category.subServices.map((s) => (
                 <li key={s.slug} className="w-full md:w-[calc((100%-2.5rem)/3)]">

@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
-import { login, registerMember, registerTasker, submitContact, submitServiceRequest } from '@/app/actions/public'
+import { login, registerMember, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
 import { COUNTRIES, WEEKDAYS } from '@/lib/constants'
+import { formatMoney, maxListingDays, quoteListing, todayISO, type ListingDuration } from '@/lib/listings'
 import { cn } from '@/lib/utils'
 
 export function ContactForm() {
@@ -258,6 +259,65 @@ export function LoginForm({ next }: { next?: string }) {
       </div>
       <FormStatus state={state && !state.ok ? state : null} />
       <SubmitButton pending={pending} pendingLabel="Signing in…" className="w-full">Sign In</SubmitButton>
+    </form>
+  )
+}
+
+/** Post an ad in a listing category — shows the price for the chosen dates before paying. */
+export function ListingForm({ category, plan }: { category: string; plan: { durations: ListingDuration[]; currency: string; addressRequired: boolean; requiresApproval: boolean } }) {
+  const { state, pending, onSubmit, formRef, errors } = useFormAction(submitListing)
+  const today = todayISO()
+  const [start, setStart] = useState(today)
+  const [end, setEnd] = useState(today)
+  const quote = quoteListing(plan.durations, start, end)
+  const maxDays = maxListingDays(plan.durations)
+  const price = quote ? formatMoney(quote.amount, plan.currency || 'CAD') : null
+  const paid = Boolean(quote && quote.amount > 0)
+
+  if (state?.ok) return <FormStatus state={state} />
+
+  return (
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="relative grid gap-3" aria-busy={pending}>
+      <Honeypot />
+      <input type="hidden" name="category" value={category} />
+      <TextField label="Ad title" name="title" required maxLength={120} error={errors.title} />
+      <TextAreaField label="Description" name="description" required rows={5} maxLength={3000} error={errors.description} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField label="Start date" name="startDate" type="date" required min={today} value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value) }} error={errors.startDate} />
+        <TextField label="End date" name="endDate" type="date" required min={start} value={end} onChange={(e) => setEnd(e.target.value)} hint={`Up to ${maxDays} days`} error={errors.endDate} />
+      </div>
+      <TextField label="Street address" name="address" required={plan.addressRequired} autoComplete="street-address" error={errors.address} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <TextField label="City" name="city" required autoComplete="address-level2" error={errors.city} />
+        <TextField label="Province / State" name="region" autoComplete="address-level1" error={errors.region} />
+        <TextField label="Postal Code" name="postalCode" autoComplete="postal-code" className="col-span-2 sm:col-span-1" error={errors.postalCode} />
+      </div>
+      <div>
+        <label htmlFor="photo" className="mb-1 block text-[0.8125rem] font-semibold text-ink">Photo <span className="font-normal text-muted">(optional, JPEG, PNG or WebP up to 5 MB)</span></label>
+        <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-invalid={errors.photo ? true : undefined} className="block w-full rounded border border-[#dee2e6] bg-white text-[0.8125rem] file:mr-3 file:border-0 file:bg-panel file:px-4 file:py-2.5 file:text-body" />
+        {errors.photo && <p role="alert" className="mt-1 text-xs text-brand">{errors.photo}</p>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField label="Your name" name="contactName" required autoComplete="name" error={errors.contactName} />
+        <TextField label="Email address" name="email" type="email" required autoComplete="email" hint="Private — for your receipt and updates" error={errors.email} />
+      </div>
+      <TextField label="Phone (shown on the ad)" name="phone" type="tel" autoComplete="tel" error={errors.phone} />
+      <TermsBox error={errors.terms} />
+      <p aria-live="polite" className="rounded bg-panel px-4 py-3 text-[0.9375rem]">
+        {quote ? (
+          <>
+            {quote.days} day{quote.days === 1 ? '' : 's'} · <strong className="text-brand">{price}</strong>
+            {plan.requiresApproval && <span className="text-muted"> · reviewed by our team before it goes live</span>}
+          </>
+        ) : (
+          <span className="text-brand">Choose dates within {maxDays} days.</span>
+        )}
+      </p>
+      <FormStatus state={state} />
+      <div className="flex items-center gap-6">
+        <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${price}` : 'Submit ad'}</SubmitButton>
+        <Link href={`/services/${category}`} className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
+      </div>
     </form>
   )
 }
