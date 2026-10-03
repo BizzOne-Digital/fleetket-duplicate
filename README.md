@@ -1,6 +1,6 @@
 # Fleeket
 
-A rebuild of **www.fleeket.com** with the same look, pages and categories as the live site, plus an admin panel, pricing plans per category, a subscriber map and three placeholder categories.
+A rebuild of **www.fleeket.com** with the same look, pages and categories as the live site, plus an admin panel, pricing plans per category, a subscriber map and three pay-per-ad categories (open house, garage sale, free ads).
 
 **Stack:** Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS v4 · MongoDB Atlas + Mongoose · Zod · Leaflet · jose · Nodemailer
 
@@ -76,9 +76,9 @@ proxy.ts           Optimistic redirect of signed-out visitors away from /admin a
 ## Pricing plans, subscribers and maps
 
 - **Pricing plans** (`/admin/plans`): payment strategies a category can use instead of the default connection fee (Admin → Pricing page). Each plan is *one-time* or *subscription* (monthly/yearly, optional free trial), paid by the customer or the provider. Pick a category's plan in its editor; leave it empty to keep the default.
-- **Ad categories (pay per ad)**: *Open House - Realtors*, *Garage Sale* and *Free Ads - Lost Pets & More* use `listing` plans. People post an ad with a start and end date at `/services/<category>/post`; the price is the cheapest of the plan's **ad lengths** that covers those dates:
+- **Ad categories (pay per ad)**: *Open House - Realtors*, *Garage Sale* and *Free Ads - Lost Pets & More* use `listing` plans. People post an ad with a start and end date at `/services/<category>/post`; the price is the cheapest of the plan's **ad lengths** that covers those dates (add more lengths in Admin → Pricing plans to price shorter ads differently):
   - Open house: one house address per ad, up to 1 month, $9.99 CAD. Several houses → one ad each.
-  - Garage sale: 1 day / 1 week / 1 month, $9.99 maximum. **Day ($2.99) and week ($5.99) prices are placeholders: confirm with the client** (Admin → Pricing plans).
+  - Garage sale: $9.99 CAD per ad, for any length from 1 day up to 1 month.
   - Free ads: $0, **checked by an admin first**: the admin is emailed, opens *Admin → Ads*, sets the status to *published*, and the poster is emailed that it's live.
   - Paid ads go to **Stripe Checkout** and publish themselves once paid (return page + `/api/stripe/webhook` backup; the amount is re-checked). Without `STRIPE_SECRET_KEY` they're saved as *awaiting payment* and the admin is emailed to take payment manually.
   - Ads disappear from the site after their end date. Abandoned checkouts stay in Admin → Ads as *awaiting payment*.
@@ -117,7 +117,6 @@ Every form (contact, service request, provider listing) is validated with Zod on
 - [ ] Have counsel review the Privacy Policy and Terms (Admin → Legal); they were restructured from the previous site's policy
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the live domain and configure SMTP
 - [ ] Images are loaded from `api.fleeket.com` / `www.fleeket.com`. Upload them to the Media library before the old server is retired
-- [ ] Confirm the garage sale **day and week prices** (Admin → Pricing plans → Garage sale ad)
 - [ ] Add `STRIPE_SECRET_KEY` (live account) and the webhook `https://www.fleeket.com/api/stripe/webhook` with its `STRIPE_WEBHOOK_SECRET`
 - [ ] Configure SMTP: free-ad approvals and "your ad is live" emails depend on it
 - [ ] Low-RAM build machine? `NEXT_BUILD_CPUS=2 pnpm build`
