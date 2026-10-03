@@ -84,11 +84,11 @@ proxy.ts           Optimistic redirect of signed-out visitors away from /admin a
   - Ads disappear from the site after their end date. Abandoned checkouts stay in Admin → Ads as *awaiting payment*.
   - Seeded once (`__seeded_v3`), which also removed the earlier hidden placeholders. Pricing rule check: `node lib/listings.check.ts`.
 - **Become A Tasker** (`/become-a-tasker`): creates a provider account plus one *pending* subscriber per chosen category (skills, hours, address) and a lead. Taskers are hidden until an admin sets them to *active* or *trial*.
-- **Subscribers** (`/admin/subscribers`): service providers with category, sub-services, plan, status (pending, active, trial, past-due, paused, cancelled), hours, address and a map pin placed by clicking the map. Sign-ups don't geocode the address, so **set the pin** when approving or the tasker won't show on the map. Contact details stay private.
+- **Subscribers** (`/admin/subscribers`): service providers with category, sub-services, plan, status (pending, active, trial, past-due, paused, cancelled), hours, address and a map pin placed by clicking the map. The map pin is looked up automatically from the address (OpenStreetMap Nominatim, `lib/geocode.ts`) at sign-up and whenever a subscriber without a pin is saved; click the map in the editor to move it. Contact details stay private.
 - **Requests**: customers choose taskers on `/services/<category>/<sub>` and send a request; it's stored as a *service-request* lead with the chosen taskers in the notes.
 - **Maps**: `/map` (public) shows subscribers that are *published* and *active or trial*, with coordinates rounded to ~1 km before they reach the browser. `/admin/map` shows everyone at their exact pin, with inactive statuses muted.
 - **Map tiles**: default to OpenStreetMap's public tiles, which are for light use only. Before launch traffic, set `NEXT_PUBLIC_MAP_TILE_URL` (and `_ATTRIBUTION`) to a keyed provider such as MapTiler or Stadia.
-- *Not built yet:* charging **tasker subscriptions**. Plans describe pricing and subscribers record status; ad payments use Stripe Checkout (above), and the same keys can drive subscriptions later. Ads are not shown on the map (sign-ups aren't geocoded).
+- *Not built yet:* charging **tasker subscriptions**. Plans describe pricing and subscribers record status; ad payments use Stripe Checkout (above), and the same keys can drive subscriptions later. Ads are not shown on the map.
 
 ## Images
 

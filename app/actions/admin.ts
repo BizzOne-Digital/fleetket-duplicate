@@ -14,6 +14,7 @@ import { canManageUsers, LEAD_STATUSES, ROLES } from '@/lib/constants'
 import { passwordSchema, flattenErrors } from '@/lib/schemas'
 import { deleteReplacedUploads, deleteUploadByUrl } from '@/lib/uploads'
 import { emailListingLive } from '@/lib/listing-service'
+import { geocode } from '@/lib/geocode'
 
 export type ActionResult = { ok: boolean; message: string; errors?: Record<string, string>; id?: string }
 
@@ -47,6 +48,9 @@ export async function saveResource(key: string, id: string | null, input: unknow
     const clash = await model.exists({ slug: data.slug, ...(id && validId(id) ? { _id: { $ne: id } } : {}) })
     if (clash) return bad('Please fix the highlighted fields.', { slug: 'Another item already uses this slug' })
   }
+
+  // A subscriber without a pin gets one from their address, so they can show on the map.
+  if (key === 'subscribers' && !data.location) data.location = await geocode(data as Parameters<typeof geocode>[0])
 
   if (id) {
     if (!validId(id)) return bad('Item not found')

@@ -14,6 +14,7 @@ import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listi
 import { rateLimited } from '@/lib/rate-limit'
 import { createCheckoutSession, isStripeConfigured } from '@/lib/stripe'
 import { storeImage } from '@/lib/uploads'
+import { geocode } from '@/lib/geocode'
 import { isAdminRole, LEAD_TYPE_LABELS, WEEKDAYS, type LeadType, type Role } from '@/lib/constants'
 
 const NOT_CONFIGURED: FormState = {
@@ -137,6 +138,7 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
   await db()
   if (await User.exists({ email: profile.email })) return EMAIL_TAKEN
   const user = await User.create({ ...profile, passwordHash: await hashPassword(password), role: 'provider' })
+  const location = await geocode(profile)
   await Subscriber.insertMany(
     [...byCategory].map(([category, subServices]) => ({
       name: profile.name,
@@ -153,6 +155,7 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
       postalCode: profile.postalCode,
       country: profile.country,
       hours: workHours,
+      location,
       userId: user._id,
     })),
   )

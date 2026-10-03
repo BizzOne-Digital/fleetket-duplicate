@@ -171,7 +171,7 @@ export const RESOURCE_DEFS = {
       { name: 'region', label: 'Province / state', type: 'text', max: 40, help: 'e.g. ON, BC, NY' },
       { name: 'postalCode', label: 'Postal code (private)', type: 'text', max: 20 },
       { name: 'country', label: 'Country', type: 'text', max: 60 },
-      { name: 'location', label: 'Map location', type: 'location', help: 'Click the map to place the pin. Place it at the neighbourhood or city — the public map rounds it further.' },
+      { name: 'location', label: 'Map location', type: 'location', help: 'Filled in automatically from the address when left empty. Click the map to move it — the public map rounds it to about 1 km.' },
       { name: 'contactName', label: 'Contact name (private)', type: 'text', max: 120 },
       { name: 'email', label: 'Email (private)', type: 'text', max: 200 },
       { name: 'phone', label: 'Phone (private)', type: 'text', max: 40 },
