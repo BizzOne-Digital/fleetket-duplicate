@@ -30,7 +30,7 @@ export function LiveHeader() {
       <header className="fixed inset-x-0 top-0 z-[var(--z-header)] h-[var(--header-h)] bg-band shadow-[0_4px_10px_rgb(0_0_0/0.15)]">
         <div className="container-x flex h-full items-center justify-between">
           <Link href="/" aria-label="Fleeket home">
-            <Logo className="h-[34px]" />
+            <Logo className="h-[34px]" priority />
           </Link>
 
           <nav aria-label="Primary" className="hidden items-center lg:flex">

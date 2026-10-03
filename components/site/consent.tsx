@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
-import { LogoMark } from '@/components/logo'
+import { Logo } from '@/components/live/logo'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -150,7 +150,7 @@ gtag('js',new Date());gtag('config',${JSON.stringify(gaId)},{anonymize_ip:true})
           <div>
             <div className="relative overflow-hidden bg-brand px-7 pb-7 pt-8 text-white sm:px-9">
               <div aria-hidden className="absolute -right-16 -top-16 size-56 rounded-full bg-[radial-gradient(closest-side,rgb(217_242_90/0.25),transparent)]" />
-              <LogoMark className="relative h-7 w-10 text-white" />
+              <span className="relative inline-block rounded bg-white p-1.5"><Logo className="h-7" /></span>
               <p className="relative mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-white/85">Welcome to Fleeket</p>
               <h2 id={`${id}-title`} className="relative mt-3 font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.035em]">
                 Before you continue

@@ -2,6 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     { "name": "fleeket", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "dev"], "port": 3000, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } },
-    { "name": "fleeket-prod", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "start"], "port": 3000, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } }
+    { "name": "fleeket-prod", "runtimeExecutable": "npx", "runtimeArgs": ["-y", "pnpm@latest", "start", "-p", "3100"], "port": 3100, "env": { "TEMP": "E:\fleeket-dev\tmp", "TMP": "E:\fleeket-dev\tmp" } }
   ]
 }

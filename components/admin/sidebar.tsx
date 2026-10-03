@@ -7,7 +7,7 @@ import {
   BadgeDollarSign, CreditCard, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Users, X,
 } from 'lucide-react'
 import { logout } from '@/app/actions/public'
-import { LogoMark } from '@/components/logo'
+import { Logo } from '@/components/live/logo'
 import { cn } from '@/lib/utils'
 
 const GROUPS = [
@@ -103,7 +103,7 @@ export function AdminSidebar({ user, newLeads, canManage }: { user: { name: stri
     <>
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/[0.07] bg-forest-950 px-4 text-cream lg:hidden">
-        <Link href="/admin" className="flex items-center gap-2 font-display font-semibold"><LogoMark className="h-5 w-7" /> Fleeket Admin</Link>
+        <Link href="/admin" className="flex items-center gap-2 font-display font-semibold"><Logo className="h-7" /> Admin</Link>
         <button type="button" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} onClick={() => setOpen((v) => !v)} className="grid size-10 place-items-center">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
@@ -118,7 +118,7 @@ export function AdminSidebar({ user, newLeads, canManage }: { user: { name: stri
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-forest-950 lg:flex">
         <Link href="/admin" className="flex h-16 items-center gap-2.5 border-b border-white/[0.07] px-6 font-display text-[1.0625rem] font-semibold tracking-[-0.02em] text-cream">
-          <LogoMark className="h-6 w-8" /> Fleeket <span className="font-sans text-xs font-medium text-haze">Admin</span>
+          <Logo className="h-8" /> <span className="font-sans text-xs font-medium text-haze">Admin</span>
         </Link>
         {nav}
         {footer}
