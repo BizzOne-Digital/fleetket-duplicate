@@ -1,6 +1,6 @@
 import 'server-only'
 import mongoose, { Schema, model, models, type InferSchemaType, type Model } from 'mongoose'
-import { LEAD_STATUSES, LEAD_TYPES, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, ROLES, SUBSCRIBER_STATUSES, UPLOAD_FOLDERS } from './constants'
+import { LEAD_STATUSES, LEAD_TYPES, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, ROLES, SUBSCRIBER_STATUSES, UPLOAD_FOLDERS, PROMO_MONTHS } from './constants'
 
 const faqItem = new Schema({ q: { type: String, required: true }, a: { type: String, required: true } }, { _id: false })
 
@@ -96,6 +96,9 @@ const subscriberSchema = new Schema(
     email: { type: String, default: '' },
     phone: { type: String, default: '' },
     notes: { type: String, default: '' },
+    /** Promo code redeemed at sign-up and the last day of the free period it gave (YYYY-MM-DD). */
+    promoCode: { type: String, default: '' },
+    freeUntil: { type: String, default: '' },
     /** Show on the public map (only while status is active or trial). */
     published: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
@@ -103,6 +106,23 @@ const subscriberSchema = new Schema(
   { timestamps: true },
 )
 subscriberSchema.index({ status: 1, published: 1 })
+
+/** A code new taskers enter at sign-up for a free subscription period. `published` = active. */
+const promoCodeSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true, uppercase: true, trim: true },
+    freeMonths: { type: String, enum: PROMO_MONTHS, default: '3' },
+    /** 0 = unlimited. */
+    maxUses: { type: Number, default: 0 },
+    uses: { type: Number, default: 0 },
+    /** Last day it can be used (YYYY-MM-DD); empty = never expires. */
+    expiresOn: { type: String, default: '' },
+    notes: { type: String, default: '' },
+    published: { type: Boolean, default: true },
+    order: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+)
 
 /** An ad posted in a listing category: an open house, a garage sale or a free ad (lost pet…). */
 const listingSchema = new Schema(
@@ -239,6 +259,7 @@ export const Category = getModel('Category', categorySchema)
 export const Plan = getModel('Plan', planSchema)
 export const Subscriber = getModel('Subscriber', subscriberSchema)
 export const Listing = getModel('Listing', listingSchema)
+export const PromoCode = getModel('PromoCode', promoCodeSchema)
 export const City = getModel('City', citySchema)
 export const Faq = getModel('Faq', faqSchema)
 export const Lead = getModel('Lead', leadSchema)

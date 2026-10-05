@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  BadgeDollarSign, CreditCard, Megaphone, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Users, X,
+  BadgeDollarSign, CreditCard, Megaphone, FileText, Gauge, HelpCircle, Image as ImageIcon, Inbox, LayoutGrid, LogOut, Map as MapIcon, MapPinned, Menu, Scale, Settings, Store, Ticket, Users, X,
 } from 'lucide-react'
 import { logout } from '@/app/actions/public'
 import { Logo } from '@/components/live/logo'
@@ -19,6 +19,7 @@ const GROUPS = [
       { href: '/admin/listings', label: 'Ads', icon: Megaphone, badge: 'ads' },
       { href: '/admin/map', label: 'Subscriber map', icon: MapIcon },
       { href: '/admin/plans', label: 'Pricing plans', icon: CreditCard },
+      { href: '/admin/promoCodes', label: 'Promo codes', icon: Ticket },
     ],
   },
   {

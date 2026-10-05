@@ -8,7 +8,7 @@ import { db } from '@/lib/content'
 import { Content, Lead, StoredUpload, User } from '@/lib/models'
 import { RESOURCE_MODELS, findBrokenReference } from '@/lib/resource-models'
 import { schemaFromFields } from '@/lib/fields'
-import { RESOURCE_DEFS, SLUG_RE, isResourceKey } from '@/lib/resources'
+import { PROMO_CODE_RE, RESOURCE_DEFS, SLUG_RE, isResourceKey } from '@/lib/resources'
 import { CONTENT_DEFS, isContentKey } from '@/lib/content-schema'
 import { canManageUsers, LEAD_STATUSES, ROLES } from '@/lib/constants'
 import { passwordSchema, flattenErrors } from '@/lib/schemas'
@@ -47,6 +47,15 @@ export async function saveResource(key: string, id: string | null, input: unknow
     if (!SLUG_RE.test(String(data.slug))) return bad('Please fix the highlighted fields.', { slug: 'Use lowercase letters, numbers and single dashes' })
     const clash = await model.exists({ slug: data.slug, ...(id && validId(id) ? { _id: { $ne: id } } : {}) })
     if (clash) return bad('Please fix the highlighted fields.', { slug: 'Another item already uses this slug' })
+  }
+
+  if (key === 'promoCodes') {
+    data.code = String(data.code).toUpperCase()
+    const errors: Record<string, string> = {}
+    if (!PROMO_CODE_RE.test(String(data.code))) errors.code = 'Use 3–40 letters, numbers and dashes'
+    else if (await model.exists({ code: data.code, ...(id && validId(id) ? { _id: { $ne: id } } : {}) })) errors.code = 'Another promo code already uses this'
+    if (data.expiresOn && !/^\d{4}-\d{2}-\d{2}$/.test(String(data.expiresOn))) errors.expiresOn = 'Use YYYY-MM-DD'
+    if (Object.keys(errors).length) return bad('Please fix the highlighted fields.', errors)
   }
 
   // A subscriber without a pin gets one from their address, so they can show on the map.

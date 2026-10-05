@@ -151,7 +151,7 @@ export const DEFAULT_FAQS: { question: string; answer: string; topic: string }[]
     topic: 'General',
     question: 'How do I sign up for Fleeket?',
     answer:
-      'Select “Be Our Member” to create a customer account, or “Become A Tasker” if you offer a service. Fill in your details, accept the Terms & Conditions and your account is ready.',
+      'Customers don’t need an account — open a service and send a request. If you offer a service, select “Become a Tasker”, fill in your details, accept the Terms & Conditions and your account is ready.',
   },
   {
     topic: 'Customers',

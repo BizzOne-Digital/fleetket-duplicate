@@ -113,6 +113,7 @@ export function MemberForm() {
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="grid gap-6" aria-busy={pending}>
       <ProfileFields errors={errors} />
+      <TextField label="Promo code (optional)" name="promoCode" autoComplete="off" maxLength={40} hint="Have a code for free months? Enter it here." error={errors.promoCode} />
       <TermsBox error={errors.terms} />
       <FormStatus state={state && !state.ok ? state : null} />
       <FormActions pending={pending} label="Create Account" />
@@ -237,6 +238,7 @@ export function TaskerForm({ groups, copy }: { groups: SkillGroup[]; copy: { ski
         <HoursTable />
         {Object.keys(errors).some((k) => k.startsWith('hours')) && <p role="alert" className="text-xs text-brand">Please use valid times (HH:MM) for each open day.</p>}
       </section>
+      <TextField label="Promo code (optional)" name="promoCode" autoComplete="off" maxLength={40} hint="Have a code for free months? Enter it here." error={errors.promoCode} />
       <TermsBox error={errors.terms} />
       <FormStatus state={state && !state.ok ? state : null} />
       <FormActions pending={pending} label="Create Account" />

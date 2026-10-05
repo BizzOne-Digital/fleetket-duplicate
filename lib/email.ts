@@ -23,9 +23,12 @@ function getTransporter() {
 const escape = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`)
 
 export async function sendEmail({ to, subject, text, replyTo }: { to: string; subject: string; text: string; replyTo?: string }) {
-  if (!isEmailConfigured) return { sent: false as const, reason: 'not-configured' }
+  if (!isEmailConfigured) {
+    console.warn(`[email] skipped "${subject}" to ${to} — SMTP_HOST, SMTP_USER and SMTP_PASS are not all set`)
+    return { sent: false as const, reason: 'not-configured' }
+  }
   try {
-    await getTransporter().sendMail({
+    const info = await getTransporter().sendMail({
       from: process.env.EMAIL_FROM || process.env.SMTP_USER,
       to,
       subject,
@@ -33,9 +36,10 @@ export async function sendEmail({ to, subject, text, replyTo }: { to: string; su
       html: `<pre style="font:14px/1.6 -apple-system,Segoe UI,sans-serif;white-space:pre-wrap">${escape(text)}</pre>`,
       replyTo,
     })
+    console.log(`[email] sent "${subject}" to ${to} — ${info.response} (id ${info.messageId})`)
     return { sent: true as const }
   } catch (err) {
-    console.error('[email] send failed', err)
+    console.error(`[email] FAILED "${subject}" to ${to} via ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}`, err)
     return { sent: false as const, reason: 'error' }
   }
 }

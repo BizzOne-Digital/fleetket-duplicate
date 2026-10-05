@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { isValidObjectId } from 'mongoose'
 import { db, getCategories, getCategory, getPlan } from '@/lib/content'
 import { isDbConfigured } from '@/lib/db'
-import { Lead, Listing, Subscriber, User } from '@/lib/models'
+import { Lead, Listing, PromoCode, Subscriber, User } from '@/lib/models'
 import { contactSchema, flattenErrors, listingSchema, loginSchema, memberSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
 import { createSession, destroySession, hashPassword, verifyPassword } from '@/lib/auth'
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
@@ -134,9 +134,25 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
     byCategory.set(cat, [...(byCategory.get(cat) ?? []), sub])
   }
 
-  const { password, confirmPassword: _c, terms: _t, skills: _s, hours: workHours, ...profile } = parsed.data
+  const { password, confirmPassword: _c, terms: _t, skills: _s, hours: workHours, promoCode, ...profile } = parsed.data
   await db()
   if (await User.exists({ email: profile.email })) return EMAIL_TAKEN
+  let freeUntil = ''
+  if (promoCode) {
+    // Claim one use atomically, so a limited code can't be over-redeemed by simultaneous sign-ups.
+    const promo = await PromoCode.findOneAndUpdate(
+      {
+        code: promoCode,
+        published: true,
+        $and: [{ $or: [{ expiresOn: '' }, { expiresOn: { $gte: todayISO() } }] }, { $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$uses', '$maxUses'] } }] }],
+      },
+      { $inc: { uses: 1 } },
+    ).lean()
+    if (!promo) return { ok: false, message: CHECK_FIELDS, errors: { promoCode: 'This promo code isn’t valid or has expired' } }
+    const end = new Date()
+    end.setMonth(end.getMonth() + Number(promo.freeMonths))
+    freeUntil = todayISO(end)
+  }
   const user = await User.create({ ...profile, passwordHash: await hashPassword(password), role: 'provider' })
   const location = await geocode(profile)
   await Subscriber.insertMany(
@@ -156,6 +172,8 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
       country: profile.country,
       hours: workHours,
       location,
+      promoCode,
+      freeUntil,
       userId: user._id,
     })),
   )
@@ -170,10 +188,10 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
     phone: profile.phone,
     area: [profile.city, profile.region, profile.country].filter(Boolean).join(', '),
     subject: 'New tasker sign-up — awaiting approval',
-    message: `Skills — ${skillNames.join(' | ')}`,
+    message: `Skills — ${skillNames.join(' | ')}${promoCode ? `\nPromo code ${promoCode} — free until ${freeUntil}` : ''}`,
     sourcePage: '/become-a-tasker',
   })
-  await notify('provider', { Name: profile.name, Email: profile.email, Phone: profile.phone, Skills: skillNames.join(' | '), Area: [profile.city, profile.region].filter(Boolean).join(', ') })
+  await notify('provider', { Name: profile.name, Email: profile.email, Phone: profile.phone, Skills: skillNames.join(' | '), Area: [profile.city, profile.region].filter(Boolean).join(', '), Promo: promoCode && `${promoCode} — free until ${freeUntil}` })
   await createSession(String(user._id), 'provider')
   redirect('/account?welcome=tasker')
 }

@@ -1,4 +1,4 @@
-import { CATEGORY_GROUPS, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, SUBSCRIBER_STATUSES } from './constants'
+import { CATEGORY_GROUPS, LISTING_STATUSES, PLAN_BILLING, PLAN_INTERVALS, PLAN_PAYERS, PROMO_MONTHS, SUBSCRIBER_STATUSES } from './constants'
 import { seoFields, type FieldSpec } from './fields'
 
 export type ResourceDef = {
@@ -187,6 +187,8 @@ export const RESOURCE_DEFS = {
           { name: 'closed', label: 'Closed', type: 'checkbox' },
         ],
       },
+      { name: 'promoCode', label: 'Promo code used', type: 'text', max: 40 },
+      { name: 'freeUntil', label: 'Free until (YYYY-MM-DD)', type: 'text', max: 10, help: 'Set from the promo code at sign-up. No subscription charge until after this day.' },
       { name: 'notes', label: 'Internal notes', type: 'textarea', rows: 3 },
       { name: 'published', label: 'Show on the public site and map', type: 'checkbox' },
     ],
@@ -225,8 +227,31 @@ export const RESOURCE_DEFS = {
       { name: 'published', label: 'Visible (untick to hide without changing the status)', type: 'checkbox' },
     ],
   },
+  promoCodes: {
+    title: 'Promo codes',
+    singular: 'Promo code',
+    publicPath: '/become-a-tasker',
+    hasSlug: false,
+    searchKeys: ['code', 'notes'],
+    columns: [
+      { key: 'code', label: 'Code' },
+      { key: 'freeMonths', label: 'Free months' },
+      { key: 'uses', label: 'Used' },
+      { key: 'expiresOn', label: 'Expires' },
+    ],
+    fields: [
+      { name: 'code', label: 'Code', type: 'text', required: true, max: 40, help: 'What taskers type at sign-up, e.g. LAUNCH6. Letters, numbers and dashes; not case-sensitive.' },
+      { name: 'freeMonths', label: 'Free subscription period (months)', type: 'select', options: PROMO_MONTHS },
+      { name: 'maxUses', label: 'Maximum uses', type: 'number', min: 0, help: '0 = unlimited.' },
+      { name: 'uses', label: 'Times used', type: 'number', min: 0, help: 'Counted automatically at each sign-up.' },
+      { name: 'expiresOn', label: 'Last day it can be used (YYYY-MM-DD)', type: 'text', max: 10, help: 'Leave empty for no expiry.' },
+      { name: 'notes', label: 'Internal notes', type: 'textarea', rows: 2 },
+      { name: 'published', label: 'Active (untick to switch the code off)', type: 'checkbox' },
+    ],
+  },
 } satisfies Record<string, ResourceDef>
 
 export type ResourceKey = keyof typeof RESOURCE_DEFS
 export const isResourceKey = (k: string): k is ResourceKey => k in RESOURCE_DEFS
+export const PROMO_CODE_RE = /^[A-Z0-9-]{3,40}$/
 export const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

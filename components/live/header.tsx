@@ -45,10 +45,7 @@ export function LiveHeader() {
               </Link>
             ))}
             <Link href="/become-a-tasker" className="ml-2 rounded bg-brand px-4 py-2 text-[0.9375rem] text-white shadow-sm transition-colors hover:bg-brand-light">
-              Become A Tasker
-            </Link>
-            <Link href="/register" className="ml-2 rounded bg-member px-4 py-2 text-[0.9375rem] text-white shadow-sm transition-colors hover:bg-member-dark">
-              Be Our Member
+              Become a Tasker
             </Link>
             <Link href={account.href} className="ml-4 px-2 text-[0.9375rem] text-brand hover:text-brand-dark">
               {account.label}
@@ -68,9 +65,8 @@ export function LiveHeader() {
                   <Link href={l.href} className="block rounded px-2 py-3 text-base text-brand hover:bg-panel">{l.label}</Link>
                 </li>
               ))}
-              <li className="grid grid-cols-2 gap-2 pt-2">
-                <Link href="/become-a-tasker" className="rounded bg-brand px-3 py-3 text-center text-white">Become A Tasker</Link>
-                <Link href="/register" className="rounded bg-member px-3 py-3 text-center text-white">Be Our Member</Link>
+              <li className="grid pt-2">
+                <Link href="/become-a-tasker" className="rounded bg-brand px-3 py-3 text-center text-white">Become a Tasker</Link>
               </li>
               <li>
                 <Link href={account.href} className="block rounded px-2 py-3 text-base text-brand hover:bg-panel">{account.label}</Link>

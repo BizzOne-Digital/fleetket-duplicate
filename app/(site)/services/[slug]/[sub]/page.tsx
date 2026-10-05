@@ -12,6 +12,12 @@ export async function generateStaticParams() {
   return (await getCategories()).flatMap((c) => c.subServices.map((s) => ({ slug: c.slug, sub: s.slug })))
 }
 
+/** Many sub-service descriptions just repeat the name (“Car Detailing Service.”) — don't show those twice. */
+const describes = (s: { name: string; description: string }) => {
+  const key = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/services?$/, '')
+  return s.description && key(s.description) !== key(s.name) ? s.description : ''
+}
+
 async function load(params: PageProps<'/services/[slug]/[sub]'>['params']) {
   const { slug, sub } = await params
   const category = await getCategory(slug)
@@ -25,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<'/services/[slug]/[
   const { category, subService } = found
   return buildMetadata({
     title: `${subService.name} — ${category.name} taskers`,
-    description: subService.description || `Find ${subService.name.toLowerCase()} taskers on Fleeket.`,
+    description: describes(subService) || `Find ${subService.name.toLowerCase()} taskers on Fleeket.`,
     path: `/services/${category.slug}/${subService.slug}`,
     image: subService.image || undefined,
   })
@@ -51,7 +57,7 @@ export default async function SubServicePage({ params }: PageProps<'/services/[s
           provider: { '@id': absoluteUrl('/#organization') },
         }}
       />
-      <TitleBand title={subService.name} body={subService.description} image={subService.image || category.image} />
+      <TitleBand title={subService.name} body={describes(subService)} image={subService.image || category.image} />
 
       <section className="py-8">
         <div className="container-x grid gap-5">

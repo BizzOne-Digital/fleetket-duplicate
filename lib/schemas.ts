@@ -65,6 +65,7 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').or(z.lit
 export const taskerSchema = z
   .object({
     ...profile,
+    promoCode: text(40).transform((v) => v.toUpperCase()),
     /** “categorySlug/subServiceSlug” pairs. */
     skills: z.array(z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/)).min(1, 'Choose at least one skill').max(30),
     hours: z
