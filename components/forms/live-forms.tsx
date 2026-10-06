@@ -290,7 +290,7 @@ export function ListingForm({ category, plan }: { category: string; plan: { dura
         <TextField label="Your name" name="contactName" required autoComplete="name" error={errors.contactName} />
         <TextField label="Email address" name="email" type="email" required autoComplete="email" hint="Private — for your receipt and updates" error={errors.email} />
       </div>
-      <TextField label="Phone (shown on the ad)" name="phone" type="tel" autoComplete="tel" error={errors.phone} />
+      <TextField label="Phone (shown on the ad)" name="phone" type="tel" autoComplete="tel" required error={errors.phone} />
       <TermsBox error={errors.terms} />
       <p aria-live="polite" className="rounded bg-panel px-4 py-3 text-[0.9375rem]">
         {quote ? (

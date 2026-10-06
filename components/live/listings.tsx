@@ -9,15 +9,18 @@ const fmt = new Intl.DateTimeFormat('en-CA', { weekday: 'short', month: 'short',
 const day = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
 export const dateRange = (start: string, end: string) => (start === end ? day(start) : `${day(start)} – ${day(end)}`)
 
-function ListingCard({ listing, fallbackImage }: { listing: PublicListing; fallbackImage: string }) {
+function ListingCard({ listing, fallbackImage, href }: { listing: PublicListing; fallbackImage: string; href: string }) {
+  const tel = listing.phone.replace(/[^\d+]/g, '')
   const place = [listing.address, listing.city, listing.region].filter(Boolean).join(', ')
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-sm border border-line bg-white">
-      <div className="relative aspect-[16/10] bg-panel">
-        <Image src={resolveImageSrc(listing.photo || fallbackImage)} alt={listing.photo ? listing.title : ''} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
-      </div>
+      <Link href={href} className="relative block aspect-[16/10] bg-panel" tabIndex={-1} aria-hidden>
+        <Image src={resolveImageSrc(listing.photo || fallbackImage)} alt={listing.photo ? listing.title : ''} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition-transform duration-500 hover:scale-105" />
+      </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="text-[1.125rem] font-bold leading-snug text-ink">{listing.title}</h3>
+        <h3 className="text-[1.125rem] font-bold leading-snug text-ink">
+          <Link href={href} className="hover:text-brand">{listing.title}</Link>
+        </h3>
         <p className="flex items-center gap-2 text-[0.8125rem] font-semibold text-brand">
           <CalendarDays aria-hidden className="size-4 shrink-0" /> {dateRange(listing.startDate, listing.endDate)}
         </p>
@@ -31,14 +34,15 @@ function ListingCard({ listing, fallbackImage }: { listing: PublicListing; fallb
             <MapPin aria-hidden className="mt-0.5 size-4 shrink-0 text-brand" /> {place}
           </a>
         )}
-        <p className="line-clamp-5 whitespace-pre-line text-[0.8125rem]">{listing.description}</p>
-        {(listing.phone || listing.contactName) && (
-          <p className="mt-auto flex items-center gap-2 border-t border-line pt-3 text-[0.8125rem]">
-            <Phone aria-hidden className="size-4 shrink-0 text-brand" />
-            <span className="font-semibold">{listing.contactName}</span>
-            {listing.phone && <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`} className="ml-auto text-brand hover:underline">{listing.phone}</a>}
-          </p>
-        )}
+        <p className="line-clamp-3 whitespace-pre-line text-[0.8125rem]">{listing.description}</p>
+        <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[0.8125rem]">
+          <Link href={href} className="rounded border border-brand px-3 py-2 text-brand hover:bg-brand hover:text-white">View ad</Link>
+          {tel && (
+            <a href={`tel:${tel}`} className="ml-auto inline-flex items-center gap-1.5 rounded bg-brand-light px-3 py-2 text-white hover:bg-brand">
+              <Phone aria-hidden className="size-4" /> Call {listing.phone}
+            </a>
+          )}
+        </div>
       </div>
     </article>
   )
@@ -61,7 +65,7 @@ export function ListingsBoard({ category, plan, listings }: { category: Category
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((l) => (
             <li key={l.id}>
-              <ListingCard listing={l} fallbackImage={category.image} />
+              <ListingCard listing={l} fallbackImage={category.image} href={`/services/${category.slug}/ads/${l.id}`} />
             </li>
           ))}
         </ul>

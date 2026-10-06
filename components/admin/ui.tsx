@@ -5,6 +5,11 @@ export function AdminHeader({ title, description, crumbs, actions }: { title: st
   return (
     <div className="flex flex-col gap-5 border-b border-forest-900/10 pb-7 md:flex-row md:items-end md:justify-between">
       <div>
+        {crumbs && crumbs.length > 1 && (
+          <Link href={crumbs[crumbs.length - 2].href} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-forest-900/15 bg-white px-3 py-1.5 text-sm font-medium text-forest-900 transition-colors hover:bg-paper">
+            <span aria-hidden>←</span> Back to {crumbs[crumbs.length - 2].label}
+          </Link>
+        )}
         {crumbs && (
           <nav aria-label="Breadcrumb" className="mb-3 text-sm text-pebble">
             <ol className="flex flex-wrap gap-2">

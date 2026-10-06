@@ -86,7 +86,7 @@ export const listingSchema = z.object({
   postalCode: text(20),
   contactName: name,
   email,
-  phone,
+  phone: phone.refine((v) => v !== '', 'Please add a phone number so people can reach you'),
   terms: z.literal(true, 'Please read and accept the Terms & Conditions'),
   website: honeypot,
 })

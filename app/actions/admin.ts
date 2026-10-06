@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { isValidObjectId } from 'mongoose'
 import { requireAdmin, hashPassword } from '@/lib/auth'
 import { db } from '@/lib/content'
-import { Content, Lead, StoredUpload, User } from '@/lib/models'
+import { Content, Lead, StoredUpload, Subscriber, User } from '@/lib/models'
 import { RESOURCE_MODELS, findBrokenReference } from '@/lib/resource-models'
 import { schemaFromFields } from '@/lib/fields'
 import { PROMO_CODE_RE, RESOURCE_DEFS, SLUG_RE, isResourceKey } from '@/lib/resources'
@@ -95,8 +95,10 @@ export async function setPublished(key: string, ids: string[], published: boolea
   if (!isResourceKey(key)) return bad('Unknown resource')
   await guard()
   await RESOURCE_MODELS[key].updateMany({ _id: { $in: ids.filter(validId) } }, { $set: { published } })
+  // Publishing a pending tasker sign-up approves it too — otherwise it stays off the site and map.
+  const approved = key === 'subscribers' && published ? (await Subscriber.updateMany({ _id: { $in: ids.filter(validId) }, status: 'pending' }, { $set: { status: 'active' } })).modifiedCount : 0
   refreshSite()
-  return { ok: true, message: published ? 'Published' : 'Hidden from the site' }
+  return { ok: true, message: published ? (approved ? `Published — ${approved} pending sign-up${approved === 1 ? '' : 's'} approved` : 'Published') : 'Hidden from the site' }
 }
 
 export async function moveResource(key: string, id: string, direction: 'up' | 'down'): Promise<ActionResult> {
