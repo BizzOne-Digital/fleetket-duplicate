@@ -31,7 +31,8 @@ export async function buildMetadata({ title, description, path, locale = DEFAULT
   const ogImages = [{ url: ogImage, width: 1200, height: 630, alt: title }]
 
   return {
-    title: absoluteTitle ? { absolute: title } : title,
+    // Titles that already name the site (e.g. an admin-entered “Contact Us | Fleeket”) skip the “%s | Fleeket” template.
+    title: absoluteTitle || (site.name && title.includes(site.name)) ? { absolute: title } : title,
     description,
     alternates: {
       canonical: url,
