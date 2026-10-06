@@ -3,7 +3,8 @@ import { AdminHeader, Badge, EmptyState, Panel, formatDate } from '@/components/
 import { ButtonLink } from '@/components/ui/button'
 import { requireAdmin } from '@/lib/auth'
 import { db } from '@/lib/content'
-import { Category, City, Faq, Lead, Listing, StoredUpload, Subscriber, User } from '@/lib/models'
+import { Category, City, Faq, Lead, Listing, Plan, PromoCode, StoredUpload, Subscriber, User } from '@/lib/models'
+import { isStripeConfigured } from '@/lib/stripe'
 import { isEmailConfigured } from '@/lib/email'
 import { LEAD_TYPE_LABELS, type LeadType } from '@/lib/constants'
 
@@ -13,7 +14,7 @@ export default async function AdminDashboard() {
   const user = await requireAdmin()
   await db()
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent, liveSubscribers, pendingTaskers, adsToReview, unpaidAds] = await Promise.all([
+  const [newLeads, weekLeads, totalLeads, byType, categories, hiddenCategories, areas, faqs, media, users, recent, liveSubscribers, pendingTaskers, adsToReview, unpaidAds, members, paymentIssues, cancelling, memberPlans, promoCodes] = await Promise.all([
     Lead.countDocuments({ status: 'new' }),
     Lead.countDocuments({ createdAt: { $gte: weekAgo } }),
     Lead.countDocuments(),
@@ -29,6 +30,12 @@ export default async function AdminDashboard() {
     Subscriber.countDocuments({ status: 'pending' }),
     Listing.countDocuments({ status: 'pending-review' }),
     Listing.countDocuments({ status: 'awaiting-payment' }),
+    // Memberships are counted per tasker (a tasker has one Subscriber row per category).
+    Subscriber.distinct('userId', { membershipStatus: { $in: ['active', 'trialing'] } }).then((d) => d.length),
+    Subscriber.distinct('userId', { membershipStatus: { $in: ['past_due', 'unpaid'] } }).then((d) => d.length),
+    Subscriber.distinct('userId', { membershipStatus: { $in: ['active', 'trialing'] }, cancelAtPeriodEnd: true }).then((d) => d.length),
+    Plan.countDocuments({ billing: 'subscription', payer: 'provider', published: true, amount: { $gt: 0 } }),
+    PromoCode.countDocuments({ published: true }),
   ])
 
   const stats = [
@@ -36,6 +43,13 @@ export default async function AdminDashboard() {
     { label: 'Ads to approve', value: adsToReview, href: '/admin/listings', accent: adsToReview > 0, note: unpaidAds ? `${unpaidAds} awaiting payment` : undefined },
     { label: 'Leads this week', value: weekLeads, href: '/admin/leads' },
     { label: 'Published categories', value: categories, href: '/admin/categories', note: hiddenCategories ? `${hiddenCategories} hidden` : undefined },
+    {
+      label: 'Paying members',
+      value: members,
+      href: '/admin/subscribers',
+      accent: paymentIssues > 0,
+      note: paymentIssues ? `${paymentIssues} with a failed payment` : cancelling ? `${cancelling} cancelling at period end` : `${promoCodes} active promo code${promoCodes === 1 ? '' : 's'}`,
+    },
     { label: 'Active subscribers', value: liveSubscribers, href: '/admin/subscribers', accent: pendingTaskers > 0, note: pendingTaskers ? `${pendingTaskers} tasker sign-up${pendingTaskers === 1 ? '' : 's'} awaiting approval` : `${areas} areas served` },
   ]
 
@@ -53,7 +67,24 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-forest-900/10 bg-forest-900/10 lg:grid-cols-5">
+      {!isStripeConfigured ? (
+        <div role="status" className="rounded-md border border-amber-500/30 bg-amber-500/[0.07] px-5 py-4 text-sm text-forest-900">
+          <strong className="font-semibold">Online payments are off.</strong> Paid ads wait for you to collect payment and tasker memberships are hidden until STRIPE_SECRET_KEY is added (see .env.example).
+        </div>
+      ) : !process.env.STRIPE_WEBHOOK_SECRET ? (
+        <div role="alert" className="rounded-md border border-red-500/30 bg-red-500/[0.07] px-5 py-4 text-sm text-forest-900">
+          <strong className="font-semibold">Stripe webhook not set up.</strong> Taskers can pay, but their memberships, renewals and cancellations won’t be recorded until STRIPE_WEBHOOK_SECRET is added. Run <code>npm run test:stripe</code> to check.
+        </div>
+      ) : (
+        memberPlans === 0 && (
+          <div role="status" className="rounded-md border border-amber-500/30 bg-amber-500/[0.07] px-5 py-4 text-sm text-forest-900">
+            <strong className="font-semibold">No membership plan yet.</strong> Taskers can’t subscribe until you add a published plan with billing “subscription” and paid by “provider” in{' '}
+            <Link href="/admin/plans" className="underline">Pricing plans</Link>.
+          </div>
+        )
+      )}
+
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-forest-900/10 bg-forest-900/10 lg:grid-cols-3">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="group bg-white p-5 transition-colors hover:bg-paper">
             <p className="text-sm text-slate">{s.label}</p>

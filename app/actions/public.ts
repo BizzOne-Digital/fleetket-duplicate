@@ -7,7 +7,7 @@ import { isValidObjectId } from 'mongoose'
 import { db, getCategories, getCategory, getPlan } from '@/lib/content'
 import { isDbConfigured } from '@/lib/db'
 import { Lead, Listing, PromoCode, Subscriber, User } from '@/lib/models'
-import { contactSchema, flattenErrors, listingSchema, loginSchema, memberSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
+import { contactSchema, flattenErrors, listingSchema, loginSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
 import { createSession, destroySession, hashPassword, verifyPassword } from '@/lib/auth'
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
 import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listings'
@@ -91,21 +91,6 @@ const safeNext = (next: string | undefined, role: Role) => {
 }
 
 const EMAIL_TAKEN: FormState = { ok: false, message: 'An account with this email already exists.', errors: { email: 'Already registered — try signing in instead.' } }
-
-/** Be Our Member — customer account. */
-export async function registerMember(_prev: FormState, form: FormData): Promise<FormState> {
-  const parsed = memberSchema.safeParse(fd(form))
-  if (!parsed.success) return { ok: false, message: CHECK_FIELDS, errors: flattenErrors(parsed.error) }
-  if (!isDbConfigured) return NOT_CONFIGURED
-  if (await rateLimited('register', 5, 30 * 60_000)) return TOO_MANY
-
-  const { password, confirmPassword: _c, terms: _t, ...profile } = parsed.data
-  await db()
-  if (await User.exists({ email: profile.email })) return EMAIL_TAKEN
-  const user = await User.create({ ...profile, passwordHash: await hashPassword(password), role: 'customer' })
-  await createSession(String(user._id), 'customer')
-  redirect('/account?welcome=1')
-}
 
 /**
  * Become A Tasker — provider account plus one pending Subscriber per category of the chosen skills.

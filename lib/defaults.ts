@@ -238,13 +238,6 @@ export const DEFAULT_CONTENT = {
     seoTitle: 'Become a Tasker | Fleeket',
     seoDescription: 'Join Fleeket as a tasker: create your profile, choose your skills and start connecting with clients in your area.',
   },
-  memberPage: {
-    heading: 'Create An Account',
-    body: 'Welcome to Fleeket! Get started now to find the perfect tasker for your needs. Browse our skilled professionals, compare their profiles, and make your selection. Your hassle-free solution is just a click away – sign up today!',
-    image: live('assets/images/BeOurMember.jpg'),
-    seoTitle: 'Be Our Member | Fleeket',
-    seoDescription: 'Create your free Fleeket account to find the perfect tasker for your needs.',
-  },
   offers: {
     title: 'Advertising Area',
     subtitle: 'Fleeket Offers',

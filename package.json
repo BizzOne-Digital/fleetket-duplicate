@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:smtp": "node scripts/test-smtp.mjs"
+    "test:smtp": "node scripts/test-smtp.mjs",
+    "test:stripe": "node scripts/test-stripe.mjs",
+    "mirror:images": "node scripts/mirror-legacy-images.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

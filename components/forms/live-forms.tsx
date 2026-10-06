@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
-import { login, registerMember, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
+import { login, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
 import { COUNTRIES, WEEKDAYS } from '@/lib/constants'
@@ -105,19 +105,6 @@ function FormActions({ pending, label }: { pending: boolean; label: string }) {
       <SubmitButton pending={pending} pendingLabel="Creating account…" className="px-6 py-2.5">{label}</SubmitButton>
       <Link href="/" className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
     </div>
-  )
-}
-
-export function MemberForm() {
-  const { state, pending, onSubmit, formRef, errors } = useFormAction(registerMember)
-  return (
-    <form ref={formRef} onSubmit={onSubmit} noValidate className="grid gap-6" aria-busy={pending}>
-      <ProfileFields errors={errors} />
-      <TextField label="Promo code (optional)" name="promoCode" autoComplete="off" maxLength={40} hint="Have a code for free months? Enter it here." error={errors.promoCode} />
-      <TermsBox error={errors.terms} />
-      <FormStatus state={state && !state.ok ? state : null} />
-      <FormActions pending={pending} label="Create Account" />
-    </form>
   )
 }
 

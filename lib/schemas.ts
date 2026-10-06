@@ -56,9 +56,6 @@ const profile = {
 const passwordsMatch = (v: { password: string; confirmPassword: string }) => v.password === v.confirmPassword
 const mismatch = { message: 'Passwords do not match', path: ['confirmPassword'] }
 
-/** Be Our Member — customer account. */
-export const memberSchema = z.object(profile).refine(passwordsMatch, mismatch)
-
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').or(z.literal(''))
 
 /** Become A Tasker — provider account with skills and weekly availability. */

@@ -88,7 +88,7 @@ proxy.ts           Optimistic redirect of signed-out visitors away from /admin a
 - **Requests**: customers choose taskers on `/services/<category>/<sub>` and send a request; it's stored as a *service-request* lead with the chosen taskers in the notes.
 - **Maps**: `/map` (public) shows subscribers that are *published* and *active or trial*, with coordinates rounded to ~1 km before they reach the browser. `/admin/map` shows everyone at their exact pin, with inactive statuses muted.
 - **Map tiles**: default to OpenStreetMap's public tiles, which are for light use only. Before launch traffic, set `NEXT_PUBLIC_MAP_TILE_URL` (and `_ATTRIBUTION`) to a keyed provider such as MapTiler or Stadia.
-- *Not built yet:* charging **tasker subscriptions**. Plans describe pricing and subscribers record status; ad payments use Stripe Checkout (above), and the same keys can drive subscriptions later. Ads are not shown on the map.
+- **Tasker memberships** are recurring Stripe subscriptions (`lib/membership.ts`, `app/actions/membership.ts`). A published plan with billing *subscription* paid by *provider* appears on the tasker's account page; it renews until they cancel in Stripe's customer portal. Only the webhook records a membership; failed payments and cancellations set the tasker past-due / cancelled, which hides them from the map. Admin → Subscribers shows each membership; Admin → Promo codes gives new taskers 3/6/12 free months. Ads are not shown on the map.
 
 ## Images
 
@@ -102,7 +102,7 @@ Every form (contact, service request, provider listing) is validated with Zod on
 
 ## Roles
 
-`owner`, `admin` and `editor` can sign in to the admin. Editors manage content; only owners and admins manage users and site settings. `customer` and `provider` accounts are created through `/register`. Roles are always re-read from the database on each request; the session token is never trusted alone.
+`owner`, `admin` and `editor` can sign in to the admin. Editors manage content; only owners and admins manage users and site settings. `provider` accounts are created through `/become-a-tasker`. Customers don't need an account (older `customer` accounts still sign in). Roles are always re-read from the database on each request; the session token is never trusted alone.
 
 ## Security notes
 
@@ -117,6 +117,6 @@ Every form (contact, service request, provider listing) is validated with Zod on
 - [ ] Have counsel review the Privacy Policy and Terms (Admin → Legal); they were restructured from the previous site's policy
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to the live domain and configure SMTP
 - [ ] Images are loaded from `api.fleeket.com` / `www.fleeket.com`. Upload them to the Media library before the old server is retired
-- [ ] Add `STRIPE_SECRET_KEY` (live account) and the webhook `https://www.fleeket.com/api/stripe/webhook` with its `STRIPE_WEBHOOK_SECRET`
+- [ ] Add `STRIPE_SECRET_KEY` (live account) and the webhook `https://www.fleeket.com/api/stripe/webhook` with its `STRIPE_WEBHOOK_SECRET`, turn on cancellations in the Stripe customer portal, then `npm run test:stripe`
 - [ ] Configure SMTP: free-ad approvals and "your ad is live" emails depend on it
 - [ ] Low-RAM build machine? `NEXT_BUILD_CPUS=2 pnpm build`

@@ -22,6 +22,8 @@ const nextConfig = {
   experimental: {
     // Ad photos (5 MB max) are posted through a server action.
     serverActions: { bodySizeLimit: '6mb' },
+    // The dev cache (.next/dev) grew to ~5 GB and filled the disk, crashing `next dev`. First start is a bit slower without it.
+    turbopackFileSystemCacheForDev: false,
     ...(process.env.NEXT_BUILD_CPUS && { cpus: Number(process.env.NEXT_BUILD_CPUS) }),
   },
   async redirects() {
@@ -32,7 +34,9 @@ const nextConfig = {
       { source: '/WhoAreWe', destination: '/about', permanent: true },
       { source: '/Contactus', destination: '/contact', permanent: true },
       { source: '/BecomeTasker', destination: '/become-a-tasker', permanent: true },
-      { source: '/CreateAccount', destination: '/register', permanent: true },
+      // Customer accounts were retired: anyone can request a tasker without signing up.
+      { source: '/CreateAccount', destination: '/#services', permanent: true },
+      { source: '/register', destination: '/#services', permanent: true },
       { source: '/SignIn', destination: '/login', permanent: true },
       // Pages from the earlier redesign that this site no longer has.
       { source: '/services', destination: '/#services', permanent: false },

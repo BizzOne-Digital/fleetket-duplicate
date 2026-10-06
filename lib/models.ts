@@ -99,6 +99,15 @@ const subscriberSchema = new Schema(
     /** Promo code redeemed at sign-up and the last day of the free period it gave (YYYY-MM-DD). */
     promoCode: { type: String, default: '' },
     freeUntil: { type: String, default: '' },
+    /** Recurring membership, kept in step by the Stripe webhook (lib/membership.ts). */
+    stripeCustomerId: { type: String, default: '' },
+    stripeSubscriptionId: { type: String, default: '' },
+    membershipPlan: { type: String, default: '' },
+    /** Stripe's status: active, trialing, past_due, canceled… */
+    membershipStatus: { type: String, default: '' },
+    /** Next renewal (or end, if cancelling) — YYYY-MM-DD. */
+    renewsOn: { type: String, default: '' },
+    cancelAtPeriodEnd: { type: Boolean, default: false },
     /** Show on the public map (only while status is active or trial). */
     published: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
@@ -224,6 +233,8 @@ const userSchema = new Schema(
     postalCode: { type: String, default: '' },
     country: { type: String, default: '' },
     lastLoginAt: { type: Date },
+    /** Held while a membership Checkout is being prepared, so two clicks can't run side by side. */
+    checkoutLockUntil: { type: Date, default: null },
   },
   { timestamps: true },
 )

@@ -111,17 +111,6 @@ export const CONTENT_DEFS = {
       ...seoFields,
     ],
   },
-  memberPage: {
-    title: 'Be Our Member',
-    section: 'Pages',
-    path: '/register',
-    fields: [
-      { name: 'heading', label: 'Heading', type: 'text', required: true },
-      { name: 'body', label: 'Intro text', type: 'textarea', rows: 3 },
-      { name: 'image', label: 'Side image', type: 'image' },
-      ...seoFields,
-    ],
-  },
   offers: {
     title: 'Category offers banner',
     section: 'Pages',
