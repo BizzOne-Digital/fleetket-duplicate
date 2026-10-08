@@ -50,7 +50,8 @@
         "MONGODB_DB": "fleeket-e2e",
         "STRIPE_WEBHOOK_SECRET": "whsec_e2e_local_only",
         "STRIPE_SECRET_KEY": "sk_test_e2e_dummy_not_a_real_key",
-        "STRIPE_API_BASE": "http://127.0.0.1:12111"
+        "STRIPE_API_BASE": "http://127.0.0.1:12111",
+        "SMTP_HOST": ""
       }
     }
   ]

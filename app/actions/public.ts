@@ -63,22 +63,44 @@ export async function submitServiceRequest(_prev: FormState, form: FormData): Pr
   if (!category) return { ok: false, message: 'That service is no longer available.' }
   const sub = category.subServices.find((s) => s.slug === subService)
   const label = sub ? `${category.name} — ${sub.name}` : category.name
+  let taskers = ''
   try {
     await db()
     const ids = providers.filter((id) => isValidObjectId(id))
-    const chosen = ids.length ? await Subscriber.find({ _id: { $in: ids }, category: category.slug }).select('name').lean() : []
+    const chosen = ids.length
+      ? await Subscriber.find({ _id: { $in: ids }, category: category.slug }).select('name contactName phone email address city region postalCode country').lean()
+      : []
+    // The requested taskers' contact details, for the admin email and the lead — what the team passes on to the customer.
+    taskers = chosen
+      .map((t, i) =>
+        [
+          `${i + 1}. ${t.name}${t.contactName && t.contactName !== t.name ? ` (contact: ${t.contactName})` : ''}`,
+          `   Phone: ${t.phone || 'not provided'}`,
+          `   Email: ${t.email || 'not provided'}`,
+          `   Address: ${[t.address, t.city, [t.region, t.postalCode].filter(Boolean).join(' '), t.country].filter(Boolean).join(', ') || 'not provided'}`,
+        ].join('\n'),
+      )
+      .join('\n\n')
     await Lead.create({
       ...data,
       category: label,
       type: 'service-request',
       subject: `Service request — ${label}`,
-      notes: chosen.length ? `Requested taskers: ${chosen.map((c) => c.name).join(', ')}` : '',
+      notes: taskers ? `Requested taskers:\n${taskers}` : '',
     })
   } catch (err) {
     console.error('[request] save failed', err)
     return { ok: false, message: 'We couldn’t submit your request just now. Please try again in a moment.' }
   }
-  await notify('service-request', { Name: data.name, Email: data.email, Phone: data.phone, Service: label, Message: data.message, Page: data.sourcePage })
+  await notify('service-request', {
+    Name: data.name,
+    Email: data.email,
+    Phone: data.phone,
+    Service: label,
+    Message: data.message,
+    Page: data.sourcePage,
+    'Requested taskers': taskers ? `\n${taskers}` : 'none selected',
+  })
   return { ok: true, message: 'Request sent. We’ll be in touch by email with the tasker details for your job.' }
 }
 
