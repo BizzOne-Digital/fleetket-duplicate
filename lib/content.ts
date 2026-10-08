@@ -337,7 +337,7 @@ export const getListings = cache((categorySlug: string) =>
   ),
 )
 
-export type PublicMapPoint = { id: string; name: string; category: string; categorySlug: string; city: string; region: string; lat: number; lng: number }
+export type PublicMapPoint = { id: string; name: string; category: string; categorySlug: string; subServices: string[]; city: string; region: string; lat: number; lng: number }
 
 /**
  * Subscribers for the public map: published, live (active/trial) and located.
@@ -348,7 +348,7 @@ export const getPublicMapPoints = cache(() =>
     'map',
     async () => {
       const [subs, categories] = await Promise.all([
-        Subscriber.find({ published: true, status: { $in: LIVE_SUBSCRIBER_STATUSES }, location: { $ne: null } }).select('name category city region location').lean(),
+        Subscriber.find({ published: true, status: { $in: LIVE_SUBSCRIBER_STATUSES }, location: { $ne: null } }).select('name category subServices city region location').lean(),
         getCategories(),
       ])
       const round = (n: number) => Math.round(n * 100) / 100
@@ -356,7 +356,7 @@ export const getPublicMapPoints = cache(() =>
         .filter((s) => s.location?.lat != null && s.location?.lng != null)
         .map((s) => {
           const cat = categories.find((c) => c.slug === s.category)
-          return { id: String(s._id), name: s.name, category: cat?.name ?? '', categorySlug: cat?.slug ?? '', city: s.city ?? '', region: s.region ?? '', lat: round(s.location!.lat!), lng: round(s.location!.lng!) }
+          return { id: String(s._id), name: s.name, category: cat?.name ?? '', categorySlug: cat?.slug ?? '', subServices: s.subServices ?? [], city: s.city ?? '', region: s.region ?? '', lat: round(s.location!.lat!), lng: round(s.location!.lng!) }
         })
     },
     (): PublicMapPoint[] => [],
@@ -388,6 +388,27 @@ export const getCategoryProviders = cache((categorySlug: string, subService?: st
     (): PublicProvider[] => [],
   ),
 )
+
+/** Every live, published tasker with the category they serve — for search by city. */
+export const getLiveProviders = cache(() =>
+  read(
+    'providers',
+    async () =>
+      (await Subscriber.find({ published: true, status: { $in: LIVE_SUBSCRIBER_STATUSES } }).select('category city region subServices').lean()).map((s) => ({
+        category: s.category ?? '',
+        city: s.city ?? '',
+        region: s.region ?? '',
+        subServices: s.subServices ?? [],
+      })),
+    (): { category: string; city: string; region: string; subServices: string[] }[] => [],
+  ),
+)
+
+/** Is a tasker inside a chosen area? Provinces/states/territories match the province code or name, anything else the city name. */
+export function inArea(p: { city: string; region: string }, a: Area) {
+  const same = (x: string, y: string) => Boolean(x && y) && x.trim().toLowerCase() === y.trim().toLowerCase()
+  return ['province', 'state', 'territory'].includes(a.kind) ? same(p.region, a.regionCode) || same(p.region, a.name) : same(p.city, a.name)
+}
 
 export const groupNames = (categories: Category[]) => [...new Set(categories.map((c) => c.group))]
 

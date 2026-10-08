@@ -7,7 +7,7 @@ import { ChevronDown, X } from 'lucide-react'
 import { login, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
-import { COUNTRIES, WEEKDAYS } from '@/lib/constants'
+import { COUNTRIES, PHONE_OPTIONAL_AD_CATEGORIES, WEEKDAYS } from '@/lib/constants'
 import { formatMoney, maxListingDays, quoteListing, todayISO, type ListingDuration } from '@/lib/listings'
 import { cn } from '@/lib/utils'
 
@@ -290,7 +290,7 @@ export function ListingForm({ category, plan }: { category: string; plan: { dura
         <TextField label="Your name" name="contactName" required autoComplete="name" error={errors.contactName} />
         <TextField label="Email address" name="email" type="email" required autoComplete="email" hint="Private — for your receipt and updates" error={errors.email} />
       </div>
-      <TextField label="Phone (shown on the ad)" name="phone" type="tel" autoComplete="tel" required error={errors.phone} />
+      <TextField label={PHONE_OPTIONAL_AD_CATEGORIES.includes(category) ? 'Phone (shown on the ad, optional)' : 'Phone (shown on the ad)'} name="phone" type="tel" autoComplete="tel" required={!PHONE_OPTIONAL_AD_CATEGORIES.includes(category)} error={errors.phone} />
       <TermsBox error={errors.terms} />
       <p aria-live="polite" className="rounded bg-panel px-4 py-3 text-[0.9375rem]">
         {quote ? (

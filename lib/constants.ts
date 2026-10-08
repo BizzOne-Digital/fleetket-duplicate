@@ -26,6 +26,8 @@ export const PLAN_INTERVALS = ['month', 'year'] as const
 export const PLAN_PAYERS = ['customer', 'provider'] as const
 /** Free subscription periods a promo code can give a new tasker. */
 export const PROMO_MONTHS = ['3', '6', '12'] as const
+/** Ad categories where the poster's phone number is optional (every other ad category requires one). */
+export const PHONE_OPTIONAL_AD_CATEGORIES = ['garage-sale', 'free-ads']
 export const SUBSCRIBER_STATUSES = ['pending', 'active', 'trial', 'past-due', 'paused', 'cancelled'] as const
 /** Subscribers in these states appear on the public map (if also marked public). */
 export const LIVE_SUBSCRIBER_STATUSES = ['active', 'trial'] as const

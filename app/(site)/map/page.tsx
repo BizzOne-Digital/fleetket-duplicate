@@ -17,10 +17,10 @@ export default async function MapPage() {
 
   return (
     <>
-      <TitleBand title="Providers Map" body="Every pin is a tasker subscribed to Fleeket. Filter by category, zoom into your area, and request the service you need." />
+      <TitleBand title="Providers Map" body="Every pin is a tasker subscribed to Fleeket. Filter by category and service, zoom into your area, and request the service you need." />
       <section className="py-8">
         <div className="container-x">
-          <SubscriberMapLoader points={points} categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} className="h-[65svh] min-h-[26rem]" />
+          <SubscriberMapLoader points={points} categories={categories.map((c) => ({ slug: c.slug, name: c.name, subServices: c.subServices.map((s) => ({ slug: s.slug, name: s.name })) }))} className="h-[65svh] min-h-[26rem]" />
           <p className="mt-3 text-[0.8125rem] text-muted">Locations are approximate to protect taskers’ privacy. Contact details are shared when you confirm a request.</p>
 
           {byCategory.length > 0 && (

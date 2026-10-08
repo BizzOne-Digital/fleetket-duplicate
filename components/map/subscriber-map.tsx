@@ -10,6 +10,8 @@ export type MapPoint = {
   name: string
   category: string
   categorySlug: string
+  /** Public map: sub-service slugs, for the service filter. */
+  subServices?: string[]
   city: string
   region: string
   lat: number
@@ -54,7 +56,7 @@ export function SubscriberMap({
   muted = [],
 }: {
   points: MapPoint[]
-  categories: { slug: string; name: string }[]
+  categories: { slug: string; name: string; subServices?: { slug: string; name: string }[] }[]
   className?: string
   /** Statuses drawn with a muted pin (admin map: paused, past-due…). */
   muted?: string[]
@@ -65,9 +67,19 @@ export function SubscriberMap({
   const L = useRef<typeof Leaflet | null>(null)
   const [ready, setReady] = useState(false)
   const [category, setCategory] = useState('')
+  const [sub, setSub] = useState('')
 
-  const visible = useMemo(() => (category ? points.filter((p) => p.categorySlug === category) : points), [points, category])
+  const visible = useMemo(
+    () => points.filter((p) => (!category || p.categorySlug === category) && (!sub || p.subServices?.includes(sub))),
+    [points, category, sub],
+  )
   const usedCategories = useMemo(() => categories.filter((c) => points.some((p) => p.categorySlug === c.slug)), [categories, points])
+  // Services of the chosen category that have at least one provider on the map.
+  const usedSubs = useMemo(
+    () => (categories.find((c) => c.slug === category)?.subServices ?? []).filter((s) => points.some((p) => p.categorySlug === category && p.subServices?.includes(s.slug))),
+    [categories, points, category],
+  )
+  const filterable = usedCategories.length > 1 || points.some((p) => p.subServices?.length)
 
   useEffect(() => {
     let cancelled = false
@@ -103,18 +115,36 @@ export function SubscriberMap({
     <div className={cn('relative isolate overflow-hidden rounded-md border border-line bg-panel', className)}>
       <div ref={el} className="absolute inset-0 z-0" role="region" aria-label="Map of service providers" />
       <div className="pointer-events-none absolute inset-x-3 top-3 z-[500] flex flex-wrap items-start justify-between gap-2">
-        {usedCategories.length > 1 && (
-          <label className="pointer-events-auto">
-            <span className="sr-only">Filter by category</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 cursor-pointer rounded-full border border-line bg-white/95 px-4 text-sm text-body shadow-[var(--shadow-card)] backdrop-blur focus:border-brand focus:outline-none"
-            >
-              <option value="">All categories</option>
-              {usedCategories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-            </select>
-          </label>
+        {filterable && (
+          <div className="pointer-events-auto flex flex-wrap gap-2">
+            <label>
+              <span className="sr-only">Filter by category</span>
+              <select
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value)
+                  setSub('')
+                }}
+                className="h-10 cursor-pointer rounded-full border border-line bg-white/95 px-4 text-sm text-body shadow-[var(--shadow-card)] backdrop-blur focus:border-brand focus:outline-none"
+              >
+                <option value="">All categories</option>
+                {usedCategories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+              </select>
+            </label>
+            {usedSubs.length > 0 && (
+              <label>
+                <span className="sr-only">Filter by service</span>
+                <select
+                  value={sub}
+                  onChange={(e) => setSub(e.target.value)}
+                  className="h-10 cursor-pointer rounded-full border border-line bg-white/95 px-4 text-sm text-body shadow-[var(--shadow-card)] backdrop-blur focus:border-brand focus:outline-none"
+                >
+                  <option value="">All services</option>
+                  {usedSubs.map((s) => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
         )}
         <span className="pointer-events-auto rounded-full bg-ink px-3.5 py-2 text-xs font-medium text-white shadow-[var(--shadow-card)]" aria-live="polite">
           {visible.length} {visible.length === 1 ? 'provider' : 'providers'}

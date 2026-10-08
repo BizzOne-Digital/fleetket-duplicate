@@ -19,11 +19,11 @@ function Cell({ label, icon, children }: { label: string; icon: React.ReactNode;
 }
 
 /** Search by service, by city, or free text — the three-part search box from fleeket.com. */
-export function SearchBar({ categories, areas }: { categories: Option[]; areas: Option[] }) {
+export function SearchBar({ categories, areas, initial }: { categories: Option[]; areas: Option[]; initial?: { service?: string; area?: string; q?: string } }) {
   const router = useRouter()
-  const [service, setService] = useState('')
-  const [area, setArea] = useState('')
-  const [q, setQ] = useState('')
+  const [service, setService] = useState(initial?.service ?? '')
+  const [area, setArea] = useState(initial?.area ?? '')
+  const [q, setQ] = useState(initial?.q ?? '')
 
   return (
     <form
@@ -31,8 +31,9 @@ export function SearchBar({ categories, areas }: { categories: Option[]; areas: 
       aria-label="Find a service"
       onSubmit={(e) => {
         e.preventDefault()
-        const params = new URLSearchParams({ ...(area && { area }), ...(q.trim() && { q: q.trim() }) })
-        router.push(service ? `/services/${service}${area ? `?area=${area}` : ''}` : `/search${params.size ? `?${params}` : ''}`)
+        // A service alone opens its category page; with a city (or words) the search page shows what's available there.
+        const params = new URLSearchParams({ ...(service && { service }), ...(area && { area }), ...(q.trim() && { q: q.trim() }) })
+        router.push(service && !area && !q.trim() ? `/services/${service}` : `/search${params.size ? `?${params}` : ''}`)
       }}
       className="mx-auto flex max-w-[1260px] flex-col overflow-hidden rounded bg-white p-1.5 shadow-[var(--shadow-lift)] md:flex-row md:items-stretch"
     >

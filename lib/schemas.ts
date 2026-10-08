@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { COUNTRIES, WEEKDAYS } from './constants'
+import { COUNTRIES, PHONE_OPTIONAL_AD_CATEGORIES, WEEKDAYS } from './constants'
 
 const name = z.string().trim().min(2, 'Please enter your name').max(100)
 const email = z.email('Please enter a valid email address').trim().toLowerCase().max(200)
@@ -74,7 +74,8 @@ export const taskerSchema = z
 const isoDate = (msg: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg)
 
 /** Post an ad in a listing category (open house, garage sale, free ad). Price and dates are re-checked on the server. */
-export const listingSchema = z.object({
+export const listingSchema = z
+  .object({
   category: z.string().trim().min(1).max(80),
   title: z.string().trim().min(4, 'Please add a short title').max(120),
   description: z.string().trim().min(10, 'Please describe your ad (at least 10 characters)').max(3000),
@@ -86,10 +87,11 @@ export const listingSchema = z.object({
   postalCode: text(20),
   contactName: name,
   email,
-  phone: phone.refine((v) => v !== '', 'Please add a phone number so people can reach you'),
+  phone,
   terms: z.literal(true, 'Please read and accept the Terms & Conditions'),
   website: honeypot,
-})
+  })
+  .refine((d) => d.phone !== '' || PHONE_OPTIONAL_AD_CATEGORIES.includes(d.category), { message: 'Please add a phone number so people can reach you', path: ['phone'] })
 
 export const loginSchema = z.object({
   email,
