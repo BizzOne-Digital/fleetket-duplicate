@@ -1,5 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
+import { geocode } from './geocode'
 import { connectDb, isDbConfigured } from './db'
 import { Category as CategoryModel, City, Content, Faq, Listing as ListingModel, Plan as PlanModel, Subscriber, User } from './models'
 import { DEFAULT_CATEGORIES, DEFAULT_CITIES, DEFAULT_CONTENT, DEFAULT_FAQS, LISTING_CATEGORIES, LISTING_PLANS, type CategorySeed, type DefaultContent } from './defaults'
@@ -337,7 +339,43 @@ export const getListings = cache((categorySlug: string) =>
   ),
 )
 
-export type PublicMapPoint = { id: string; name: string; category: string; categorySlug: string; subServices: string[]; city: string; region: string; lat: number; lng: number }
+export type PublicMapPoint = { id: string; name: string; category: string; categorySlug: string; subServices: string[]; city: string; region: string; lat: number; lng: number; href?: string }
+
+// Listings store addresses, not coordinates. Cache successful lookups by address without changing the schema.
+const listingLocation = unstable_cache(
+  async (address: string, city: string, region: string, postalCode: string) => {
+    const location = await geocode({ address, city, region, postalCode })
+    if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng) || Math.abs(location.lat) > 90 || Math.abs(location.lng) > 180) {
+      throw new Error('Ad address could not be located')
+    }
+    return location
+  },
+  ['listing-map-location'],
+  { revalidate: 86400 },
+)
+
+/** Discover ad categories from their published listing plans; reuse each board’s eligibility and detail URLs. */
+export const getListingMapPoints = cache(async (): Promise<PublicMapPoint[]> => {
+  const [categories, plans] = await Promise.all([getCategories(), getPlans()])
+  const listingPlans = new Set(plans.filter((p) => p.billing === 'listing').map((p) => p.slug))
+  const points: PublicMapPoint[] = []
+  for (const category of categories.filter((c) => listingPlans.has(c.plan))) {
+    for (const listing of await getListings(category.slug)) {
+      try {
+        const location = await listingLocation(listing.address, listing.city, listing.region, listing.postalCode)
+        points.push({
+          id: `listing-${listing.id}`, name: listing.title,
+          category: category.name, categorySlug: category.slug, subServices: [],
+          city: listing.city, region: listing.region, ...location,
+          href: `/services/${category.slug}/ads/${listing.id}`,
+        })
+      } catch {
+        console.warn('[map] Ad location unavailable', listing.id)
+      }
+    }
+  }
+  return points
+})
 
 /**
  * Subscribers for the public map: published, live (active/trial) and located.

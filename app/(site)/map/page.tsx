@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { TitleBand } from '@/components/live/blocks'
 import { SubscriberMapLoader } from '@/components/map/subscriber-map-loader'
-import { getCategories, getPublicMapPoints } from '@/lib/content'
+import { getCategories, getListingMapPoints, getPublicMapPoints } from '@/lib/content'
 import { buildMetadata } from '@/lib/seo'
+
+// Read current listing visibility on each visit, including after publication and expiry.
+export const revalidate = 0
 
 export const generateMetadata = () =>
   buildMetadata({
@@ -12,7 +15,8 @@ export const generateMetadata = () =>
   })
 
 export default async function MapPage() {
-  const [points, categories] = await Promise.all([getPublicMapPoints(), getCategories()])
+  const [providerPoints, listingPoints, categories] = await Promise.all([getPublicMapPoints(), getListingMapPoints(), getCategories()])
+  const points = [...providerPoints, ...listingPoints]
   const byCategory = categories.map((c) => ({ ...c, points: points.filter((p) => p.categorySlug === c.slug) })).filter((c) => c.points.length)
 
   return (
