@@ -4,9 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { isValidObjectId } from 'mongoose'
-import { db, getCategories, getCategory, getPlan } from '@/lib/content'
+import { db, getCategories, getCategory, getPlan, getPlans } from '@/lib/content'
 import { isDbConfigured } from '@/lib/db'
-import { Lead, Listing, PromoCode, Subscriber, User } from '@/lib/models'
+import { Lead, Listing, Subscriber, User } from '@/lib/models'
 import { contactSchema, flattenErrors, listingSchema, loginSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
 import { createSession, destroySession, hashPassword, verifyPassword } from '@/lib/auth'
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
@@ -15,6 +15,8 @@ import { rateLimited } from '@/lib/rate-limit'
 import { createCheckoutSession, isStripeConfigured } from '@/lib/stripe'
 import { storeImage } from '@/lib/uploads'
 import { geocode } from '@/lib/geocode'
+import { claimPromoCode, promoCodeProblem, releasePromoCode } from '@/lib/membership'
+import { startMembership } from '@/app/actions/membership'
 import { isAdminRole, LEAD_TYPE_LABELS, WEEKDAYS, type LeadType, type Role } from '@/lib/constants'
 
 const NOT_CONFIGURED: FormState = {
@@ -146,44 +148,42 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
   if (await User.exists({ email: profile.email })) return EMAIL_TAKEN
   let freeUntil = ''
   if (promoCode) {
-    // Claim one use atomically, so a limited code can't be over-redeemed by simultaneous sign-ups.
-    const promo = await PromoCode.findOneAndUpdate(
-      {
-        code: promoCode,
-        published: true,
-        $and: [{ $or: [{ expiresOn: '' }, { expiresOn: { $gte: todayISO() } }] }, { $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$uses', '$maxUses'] } }] }],
-      },
-      { $inc: { uses: 1 } },
-    ).lean()
-    if (!promo) return { ok: false, message: CHECK_FIELDS, errors: { promoCode: 'This promo code isn’t valid or has expired' } }
-    const end = new Date()
-    end.setMonth(end.getMonth() + Number(promo.freeMonths))
-    freeUntil = todayISO(end)
+    freeUntil = await claimPromoCode(promoCode)
+    if (!freeUntil) return { ok: false, message: CHECK_FIELDS, errors: { promoCode: await promoCodeProblem(promoCode) } }
   }
-  const user = await User.create({ ...profile, passwordHash: await hashPassword(password), role: 'provider' })
-  const location = await geocode(profile)
-  await Subscriber.insertMany(
-    [...byCategory].map(([category, subServices]) => ({
-      name: profile.name,
-      category,
-      subServices,
-      status: 'pending',
-      published: true,
-      contactName: profile.name,
-      email: profile.email,
-      phone: profile.phone,
-      address: profile.address,
-      city: profile.city,
-      region: profile.region,
-      postalCode: profile.postalCode,
-      country: profile.country,
-      hours: workHours,
-      location,
-      promoCode,
-      freeUntil,
-      userId: user._id,
-    })),
-  )
+  const user = new User({ ...profile, passwordHash: await hashPassword(password), role: 'provider' })
+  try {
+    await user.save()
+    const location = await geocode(profile)
+    await Subscriber.insertMany(
+      [...byCategory].map(([category, subServices]) => ({
+        name: profile.name,
+        category,
+        subServices,
+        status: 'pending',
+        published: true,
+        contactName: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        city: profile.city,
+        region: profile.region,
+        postalCode: profile.postalCode,
+        country: profile.country,
+        hours: workHours,
+        location,
+        promoCode,
+        freeUntil,
+        userId: user._id,
+      })),
+    )
+  } catch (err) {
+    // Don't leave a half-made account (it would block signing up again) or a promo use spent on nothing.
+    console.error('[tasker] sign-up failed', err)
+    await User.deleteOne({ _id: user._id })
+    if (freeUntil) await releasePromoCode(promoCode)
+    return { ok: false, message: 'We couldn’t create your account just now. Please try again in a moment.' }
+  }
   const skillNames = [...byCategory].map(([cat, subs]) => {
     const c = categories.find((x) => x.slug === cat)!
     return `${c.name}: ${subs.map((s) => c.subServices.find((x) => x.slug === s)?.name).join(', ')}`
@@ -200,6 +200,14 @@ export async function registerTasker(_prev: FormState, form: FormData): Promise<
   })
   await notify('provider', { Name: profile.name, Email: profile.email, Phone: profile.phone, Skills: skillNames.join(' | '), Area: [profile.city, profile.region].filter(Boolean).join(', '), Promo: promoCode && `${promoCode} — free until ${freeUntil}` })
   await createSession(String(user._id), 'provider')
+  // New taskers go straight to Stripe Checkout for the membership (their promo free period is applied there).
+  // ponytail: first membership plan by admin order; add a plan picker to the sign-up form if there are several.
+  const plan = isStripeConfigured && (await getPlans()).find((p) => p.billing === 'subscription' && p.payer === 'provider' && p.amount > 0)
+  if (plan) {
+    const checkout = new FormData()
+    checkout.set('plan', plan.slug)
+    await startMembership(checkout)
+  }
   redirect('/account?welcome=tasker')
 }
 

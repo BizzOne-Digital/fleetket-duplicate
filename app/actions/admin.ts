@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { isValidObjectId } from 'mongoose'
+import { isValidObjectId, type Types } from 'mongoose'
 import { requireAdmin, hashPassword } from '@/lib/auth'
 import { db } from '@/lib/content'
 import { Content, Lead, StoredUpload, Subscriber, User } from '@/lib/models'
@@ -66,6 +66,10 @@ export async function saveResource(key: string, id: string | null, input: unknow
     const before = await model.findById(id).lean()
     if (!before) return bad('Item not found')
     await model.updateOne({ _id: id }, { $set: data })
+    // Approving a tasker (pending → any other status) approves their other skill rows too — the account shows them all.
+    if (key === 'subscribers' && before.status === 'pending' && data.status !== 'pending' && before.userId) {
+      await Subscriber.updateMany({ userId: before.userId, status: 'pending' }, { $set: { status: data.status } })
+    }
     await deleteReplacedUploads(before, data)
     // Approving an ad (e.g. a free ad) tells the poster it's live.
     if (key === 'listings' && before.status !== 'published' && data.status === 'published') await emailListingLive({ ...before, ...data } as Parameters<typeof emailListingLive>[0])
@@ -96,7 +100,9 @@ export async function setPublished(key: string, ids: string[], published: boolea
   await guard()
   await RESOURCE_MODELS[key].updateMany({ _id: { $in: ids.filter(validId) } }, { $set: { published } })
   // Publishing a pending tasker sign-up approves it too — otherwise it stays off the site and map.
-  const approved = key === 'subscribers' && published ? (await Subscriber.updateMany({ _id: { $in: ids.filter(validId) }, status: 'pending' }, { $set: { status: 'active' } })).modifiedCount : 0
+  // The whole tasker is approved: their other skill rows too.
+  const userIds = key === 'subscribers' && published ? await Subscriber.distinct('userId', { _id: { $in: ids.filter(validId) }, userId: { $ne: null } }) : []
+  const approved = key === 'subscribers' && published ? (await Subscriber.updateMany({ $or: [{ _id: { $in: ids.filter(validId) } }, { userId: { $in: userIds } }], status: 'pending' }, { $set: { status: 'active' } })).modifiedCount : 0
   refreshSite()
   return { ok: true, message: published ? (approved ? `Published — ${approved} pending sign-up${approved === 1 ? '' : 's'} approved` : 'Published') : 'Hidden from the site' }
 }
@@ -136,14 +142,31 @@ export async function saveContent(key: string, input: unknown): Promise<ActionRe
 
 const leadUpdate = z.object({ status: z.enum(LEAD_STATUSES), notes: z.string().max(10000) })
 
+/**
+ * Marking a tasker sign-up lead qualified/converted approves that tasker too (matched by the account email) —
+ * otherwise their account keeps showing “awaiting approval”. Returns how many taskers were approved.
+ */
+async function approveTaskersFromLeads(ids: string[], status: string | undefined) {
+  if (status !== 'qualified' && status !== 'converted') return 0
+  const emails = await Lead.distinct('email', { _id: { $in: ids }, type: 'provider' })
+  if (!emails.length) return 0
+  const userIds = (await User.distinct('_id', { email: { $in: emails }, role: 'provider' })) as Types.ObjectId[]
+  const userCount = (await Subscriber.distinct('userId', { userId: { $in: userIds }, status: 'pending' })).length
+  if (!userCount) return 0
+  await Subscriber.updateMany({ userId: { $in: userIds }, status: 'pending' }, { $set: { status: 'active' } })
+  refreshSite()
+  return userCount
+}
+
 export async function updateLead(id: string, input: unknown): Promise<ActionResult> {
   if (!validId(id)) return bad('Lead not found')
   await guard()
   const parsed = leadUpdate.safeParse(input)
   if (!parsed.success) return bad('Invalid update', flattenErrors(parsed.error))
   await Lead.updateOne({ _id: id }, { $set: parsed.data })
+  const approved = await approveTaskersFromLeads([id], parsed.data.status)
   revalidatePath('/admin', 'layout')
-  return { ok: true, message: 'Lead updated' }
+  return { ok: true, message: approved ? 'Lead updated — tasker approved and now live' : 'Lead updated' }
 }
 
 export async function bulkLeads(ids: string[], action: 'delete' | (typeof LEAD_STATUSES)[number]): Promise<ActionResult> {
@@ -152,8 +175,9 @@ export async function bulkLeads(ids: string[], action: 'delete' | (typeof LEAD_S
   if (action === 'delete') await Lead.deleteMany({ _id: { $in: valid } })
   else if ((LEAD_STATUSES as readonly string[]).includes(action)) await Lead.updateMany({ _id: { $in: valid } }, { $set: { status: action } })
   else return bad('Unknown action')
+  const approved = action === 'delete' ? 0 : await approveTaskersFromLeads(valid, action)
   revalidatePath('/admin', 'layout')
-  return { ok: true, message: action === 'delete' ? `${valid.length} deleted` : `${valid.length} marked ${action}` }
+  return { ok: true, message: action === 'delete' ? `${valid.length} deleted` : `${valid.length} marked ${action}${approved ? ` — ${approved} tasker${approved === 1 ? '' : 's'} approved` : ''}` }
 }
 
 /* ---------- Users ---------- */

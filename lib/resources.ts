@@ -243,8 +243,8 @@ export const RESOURCE_DEFS = {
     fields: [
       { name: 'code', label: 'Code', type: 'text', required: true, max: 40, help: 'What taskers type at sign-up, e.g. LAUNCH6. Letters, numbers and dashes; not case-sensitive.' },
       { name: 'freeMonths', label: 'Free subscription period (months)', type: 'select', options: PROMO_MONTHS, help: 'Counted from sign-up. The tasker’s card is collected when they subscribe; the first charge is after the free period.' },
-      { name: 'maxUses', label: 'Maximum uses', type: 'number', min: 0, help: '0 = unlimited.' },
-      { name: 'uses', label: 'Times used', type: 'number', min: 0, help: 'Counted automatically at each sign-up.' },
+      { name: 'maxUses', label: 'Maximum uses (in total)', type: 'number', min: 0, help: 'How many taskers can use it altogether — 1 means only the first tasker. 0 = unlimited.' },
+      { name: 'uses', label: 'Times used', type: 'number', min: 0, help: 'Counted automatically. Once it reaches the maximum the code stops working — raise the maximum or set this back to 0 to reuse it.' },
       { name: 'expiresOn', label: 'Last day it can be used (YYYY-MM-DD)', type: 'text', max: 10, help: 'Leave empty for no expiry.' },
       { name: 'notes', label: 'Internal notes', type: 'textarea', rows: 2 },
       { name: 'published', label: 'Active (untick to switch the code off)', type: 'checkbox' },

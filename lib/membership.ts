@@ -4,7 +4,7 @@ import { isValidObjectId } from 'mongoose'
 import { connectDb } from './db'
 import { notifyAdmin } from './listing-service'
 import { todayISO } from './listings'
-import { Subscriber } from './models'
+import { PromoCode, Subscriber } from './models'
 import { cancelSubscription, getSubscription, type StripeSubscription } from './stripe'
 
 /** Stripe subscription status → the tasker's listing status (pending taskers stay pending until an admin approves them). */
@@ -19,6 +19,37 @@ const LISTING_STATUS: Record<string, string> = {
 }
 /** Subscriptions that still count as the member's current membership. */
 export const CURRENT_MEMBERSHIP = ['active', 'trialing', 'past_due', 'unpaid', 'paused']
+
+/**
+ * Redeems an admin-created promo code (active, not expired, uses left) and returns the last free day (YYYY-MM-DD),
+ * or '' if the code can't be used. One use is claimed atomically, so a limited code can't be over-redeemed.
+ */
+export async function claimPromoCode(code: string) {
+  const promo = await PromoCode.findOneAndUpdate(
+    {
+      code: code.trim().toUpperCase(),
+      published: true,
+      $and: [{ $or: [{ expiresOn: '' }, { expiresOn: { $gte: todayISO() } }] }, { $or: [{ maxUses: { $lte: 0 } }, { $expr: { $lt: ['$uses', '$maxUses'] } }] }],
+    },
+    { $inc: { uses: 1 } },
+  ).lean<{ freeMonths: string }>()
+  if (!promo) return ''
+  const end = new Date()
+  end.setMonth(end.getMonth() + Number(promo.freeMonths))
+  return todayISO(end)
+}
+
+/** Gives back a use claimed by a sign-up that then failed, so the code isn't used up by nothing. */
+export const releasePromoCode = (code: string) => PromoCode.updateOne({ code: code.trim().toUpperCase(), uses: { $gt: 0 } }, { $inc: { uses: -1 } })
+
+/** Why a code can't be used — so the tasker (and the admin testing it) sees the real reason. */
+export async function promoCodeProblem(code: string) {
+  const p = await PromoCode.findOne({ code: code.trim().toUpperCase() }).lean<{ published: boolean; expiresOn: string; maxUses: number; uses: number }>()
+  if (!p || !p.published) return 'This promo code doesn’t exist or has been switched off'
+  if (p.expiresOn && p.expiresOn < todayISO()) return `This promo code expired on ${p.expiresOn}`
+  if (p.maxUses > 0 && p.uses >= p.maxUses) return 'This promo code has already been used the maximum number of times'
+  return 'This promo code can’t be used right now — please try again'
+}
 
 /** The tasker's membership row: the one carrying Stripe IDs if any (rows added later may not have them yet). */
 type MembershipRow = { name: string; email: string; stripeCustomerId: string; stripeSubscriptionId: string; membershipStatus: string; freeUntil: string }

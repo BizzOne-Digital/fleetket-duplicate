@@ -27,6 +27,8 @@ const MEMBERSHIP_NOTICE: Record<string, { ok: boolean; text: string }> = {
   cancelled: { ok: false, text: 'Checkout was cancelled — you have not been charged.' },
   unavailable: { ok: false, text: 'Online payments aren’t available right now. Please contact us.' },
   error: { ok: false, text: 'We couldn’t open the payment page just now. Please try again, or contact us.' },
+  'promo-invalid': { ok: false, text: 'That promo code isn’t valid, has expired or has been fully used. Check it and try again, or subscribe without it.' },
+  'promo-ineligible': { ok: false, text: 'Promo codes are for a first membership only, so this code can’t be applied to your account.' },
 }
 
 const MEMBERSHIP_STATUS: Record<string, string> = {
@@ -97,6 +99,9 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
                       {p.summary && <p className="mt-1 text-[0.8125rem]">{p.summary}</p>}
                       <form action={startMembership} className="mt-auto pt-3">
                         <input type="hidden" name="plan" value={p.slug} />
+                        {!freeUntil && !member.stripeSubscriptionId && (
+                          <input name="promoCode" aria-label="Promo code (optional)" placeholder="Promo code (optional)" autoComplete="off" maxLength={40} className="mb-2 w-full rounded border border-line px-3 py-2 uppercase" />
+                        )}
                         <button type="submit" className="w-full rounded bg-brand-light px-5 py-2.5 text-white hover:bg-brand">Subscribe</button>
                       </form>
                     </li>

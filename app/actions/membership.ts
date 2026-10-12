@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
 import { db, getPlan } from '@/lib/content'
-import { CURRENT_MEMBERSHIP, membershipRow } from '@/lib/membership'
+import { CURRENT_MEMBERSHIP, claimPromoCode, membershipRow } from '@/lib/membership'
 import { Subscriber, User } from '@/lib/models'
 import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, isStripeConfigured, listSubscriptions } from '@/lib/stripe'
 
@@ -36,6 +36,16 @@ export async function startMembership(form: FormData) {
   const plan = await getPlan(String(form.get('plan') ?? ''))
   if (!plan || plan.billing !== 'subscription' || plan.payer !== 'provider' || plan.amount <= 0) redirect('/account?membership=error')
 
+  // A promo code entered here (not only at sign-up) gives the same free period — first membership only, checked here.
+  const promoCode = String(form.get('promoCode') ?? '').trim().toUpperCase()
+  if (promoCode && !row.freeUntil) {
+    if (row.stripeSubscriptionId) redirect('/account?membership=promo-ineligible')
+    const freeUntil = await claimPromoCode(promoCode)
+    if (!freeUntil) redirect('/account?membership=promo-invalid')
+    await Subscriber.updateMany({ userId: user.id }, { $set: { promoCode, freeUntil } })
+    row.freeUntil = freeUntil
+  }
+
   const base = await origin()
   let url: string | null = null
   if (!(await lockCheckout(user.id))) redirect('/account?membership=error')
@@ -45,7 +55,18 @@ export async function startMembership(form: FormData) {
       customerId = (await createCustomer({ userId: user.id, email: user.email, name: user.name })).id
       await Subscriber.updateMany({ userId: user.id }, { $set: { stripeCustomerId: customerId } })
     }
-    const existing = await listSubscriptions(customerId)
+    let existing
+    try {
+      existing = await listSubscriptions(customerId)
+    } catch (err) {
+      // A customer saved under another Stripe key (e.g. test mode before going live) doesn't exist here: start fresh.
+      if (!/No such customer/.test(String(err))) throw err
+      const stale = customerId
+      customerId = (await createCustomer({ userId: user.id, email: user.email, name: user.name, replaces: stale })).id
+      await Subscriber.updateMany({ userId: user.id }, { $set: { stripeCustomerId: customerId, stripeSubscriptionId: '', membershipStatus: '' } })
+      row.stripeSubscriptionId = ''
+      existing = await listSubscriptions(customerId)
+    }
     if (existing.some((s) => CURRENT_MEMBERSHIP.includes(s.status) || s.status === 'incomplete')) {
       url = '/account?membership=exists'
     } else {

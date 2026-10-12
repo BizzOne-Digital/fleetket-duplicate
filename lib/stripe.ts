@@ -88,8 +88,10 @@ export const getSubscription = (id: string) => stripe<StripeSubscription>(`subsc
  * One Stripe customer per tasker. The idempotency key makes simultaneous first clicks (two tabs, a double-click)
  * get the same customer back instead of creating two.
  */
-export const createCustomer = (o: { userId: string; email: string; name: string }) =>
-  stripe<{ id: string }>('customers', new URLSearchParams({ email: o.email, name: o.name, 'metadata[userId]': o.userId }), { idempotencyKey: `fleeket-customer-${o.userId}` })
+export const createCustomer = (o: { userId: string; email: string; name: string; replaces?: string }) =>
+  stripe<{ id: string }>('customers', new URLSearchParams({ email: o.email, name: o.name, 'metadata[userId]': o.userId }), {
+    idempotencyKey: `fleeket-customer-${o.userId}${o.replaces ? `-${o.replaces}` : ''}`,
+  })
 
 /** All of a customer's subscriptions, including ended ones. */
 export const listSubscriptions = async (customerId: string) =>
