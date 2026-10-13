@@ -75,9 +75,13 @@ export async function startMembership(form: FormData) {
       const firstTime = existing.length === 0 && !row.stripeSubscriptionId
       const promoEnd = row.freeUntil ? Math.floor(new Date(`${row.freeUntil}T23:59:59Z`).getTime() / 1000) : 0
       const trialEnd = firstTime && promoEnd > Date.now() / 1000 + 2 * DAY ? promoEnd : undefined
+      // One membership per category the tasker offers (one Subscriber row per category).
+      // ponytail: quantity is set at checkout; categories added later don't change an existing subscription — update it in Stripe.
+      const quantity = (await Subscriber.distinct('category', { userId: user.id })).length || 1
       const session = await createSubscriptionCheckout({
         userId: user.id,
         plan,
+        quantity,
         customerId,
         trialEnd,
         trialDays: firstTime && !trialEnd ? plan.trialDays : undefined,

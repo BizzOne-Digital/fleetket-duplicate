@@ -56,6 +56,8 @@ export type StripeSubscription = {
 export function createSubscriptionCheckout(o: {
   userId: string
   plan: { slug: string; name: string; amount: number; currency: string; interval: 'month' | 'year' }
+  /** Membership is priced per category: Stripe shows “price × quantity”. */
+  quantity: number
   customerId: string
   trialEnd?: number
   trialDays?: number
@@ -71,11 +73,11 @@ export function createSubscriptionCheckout(o: {
     'subscription_data[metadata][plan]': o.plan.slug,
     success_url: o.successUrl,
     cancel_url: o.cancelUrl,
-    'line_items[0][quantity]': '1',
+    'line_items[0][quantity]': String(Math.max(1, o.quantity)),
     'line_items[0][price_data][currency]': (o.plan.currency || 'CAD').toLowerCase(),
     'line_items[0][price_data][unit_amount]': String(Math.round(o.plan.amount * 100)),
     'line_items[0][price_data][recurring][interval]': o.plan.interval,
-    'line_items[0][price_data][product_data][name]': `Fleeket ${o.plan.name}`,
+    'line_items[0][price_data][product_data][name]': `Fleeket ${o.plan.name} — per category`,
   })
   if (o.trialEnd) body.set('subscription_data[trial_end]', String(o.trialEnd))
   else if (o.trialDays) body.set('subscription_data[trial_period_days]', String(o.trialDays))

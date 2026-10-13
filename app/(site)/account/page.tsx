@@ -94,7 +94,12 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
                   {memberPlans.map((p) => (
                     <li key={p.slug} className="flex flex-col rounded border border-line bg-white p-4">
                       <p className="font-bold text-ink">{p.name}</p>
-                      <p className="text-[1.125rem] font-bold text-brand">{formatPlanPrice(p)}</p>
+                      <p className="text-[1.125rem] font-bold text-brand">{formatPlanPrice(p)} per category</p>
+                      {listings.length > 1 && (
+                        <p className="text-[0.8125rem] font-semibold">
+                          Your {listings.length} categories: ${(p.amount * listings.length).toFixed(2)}{p.currency ? ` ${p.currency}` : ''} / {p.interval}
+                        </p>
+                      )}
                       {!freeUntil && !member.stripeSubscriptionId && p.trialDays > 0 && <p className="text-[0.8125rem] text-muted">{p.trialDays}-day free trial</p>}
                       {p.summary && <p className="mt-1 text-[0.8125rem]">{p.summary}</p>}
                       <form action={startMembership} className="mt-auto pt-3">

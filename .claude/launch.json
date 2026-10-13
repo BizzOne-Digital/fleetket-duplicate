@@ -40,9 +40,9 @@
         "pnpm@latest",
         "start",
         "-p",
-        "3200"
+        "3210"
       ],
-      "port": 3200,
+      "port": 3210,
       "env": {
         "TEMP": "E:\fleeket-dev\tmp",
         "TMP": "E:\fleeket-dev\tmp",

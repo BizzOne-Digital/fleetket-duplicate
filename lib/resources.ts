@@ -124,7 +124,7 @@ export const RESOURCE_DEFS = {
       { name: 'name', label: 'Plan name', type: 'text', required: true, max: 80 },
       slugField,
       { name: 'billing', label: 'Billing', type: 'select', options: PLAN_BILLING, help: 'One-time fee per connection, a recurring subscription, or “listing” — pay per ad, priced by how long it runs. A published subscription paid by “provider” is a tasker membership: taskers subscribe from their account page and it renews automatically until they cancel.' },
-      { name: 'amount', label: 'Price', type: 'number', step: 0.01, min: 0, help: 'Memberships: a new price applies to new members only — existing members keep the price they signed up at.' },
+      { name: 'amount', label: 'Price', type: 'number', step: 0.01, min: 0, help: 'Memberships: this is the price per category — a tasker in 2 categories pays twice this. A new price applies to new members only; existing members keep the price they signed up at.' },
       { name: 'currency', label: 'Currency code', type: 'text', max: 3, help: 'e.g. CAD or USD. Leave blank to show the amount only.' },
       { name: 'interval', label: 'Billing interval', type: 'select', options: PLAN_INTERVALS, help: 'Used for subscriptions only.' },
       { name: 'trialDays', label: 'Free trial (days)', type: 'number', min: 0, help: '0 for no trial. Subscriptions only, first membership only. A tasker’s promo code free period replaces it.' },
