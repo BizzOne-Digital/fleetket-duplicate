@@ -45,7 +45,7 @@ export type StripeSubscription = {
   cancel_at?: number | null
   /** Older API versions put the period on the subscription, newer ones on its items. */
   current_period_end?: number
-  items?: { data: { current_period_end?: number }[] }
+  items?: { data: { id?: string; quantity?: number; current_period_end?: number }[] }
   metadata: { userId?: string; plan?: string }
 }
 
@@ -82,6 +82,20 @@ export function createSubscriptionCheckout(o: {
   if (o.trialEnd) body.set('subscription_data[trial_end]', String(o.trialEnd))
   else if (o.trialDays) body.set('subscription_data[trial_period_days]', String(o.trialDays))
   return stripe<CheckoutSession>('checkout/sessions', body)
+}
+
+/**
+ * Bills a different number of categories on the same subscription — nothing is cancelled or restarted.
+ * Stripe prorates: an added category is charged (and a removed one credited) for the rest of the current period
+ * on the next invoice.
+ */
+export function setSubscriptionQuantity(sub: StripeSubscription, quantity: number) {
+  const item = sub.items?.data?.[0]
+  if (!item?.id) throw new Error(`Subscription ${sub.id} has no item to update`)
+  return stripe<StripeSubscription>(
+    `subscriptions/${encodeURIComponent(sub.id)}`,
+    new URLSearchParams({ 'items[0][id]': item.id, 'items[0][quantity]': String(Math.max(1, quantity)), proration_behavior: 'create_prorations' }),
+  )
 }
 
 export const getSubscription = (id: string) => stripe<StripeSubscription>(`subscriptions/${encodeURIComponent(id)}`)

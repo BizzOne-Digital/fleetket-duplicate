@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { logout } from '@/app/actions/public'
+import { SkillsEditor } from '@/components/forms/live-forms'
 import { openBillingPortal, startMembership } from '@/app/actions/membership'
 import { requireUser } from '@/lib/auth'
 import { db, formatPlanPrice, getCategories, getPlans } from '@/lib/content'
@@ -120,6 +121,12 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
         {provider ? (
           <div className="mt-6 grid gap-3">
             <h2 className="text-[1.25rem] font-bold text-ink">Your skills</h2>
+            {listings.length > 0 && (
+              <p className="text-[0.8125rem] text-muted">
+                Add or remove services any time below.{' '}
+                {current ? 'Your membership keeps running — only the number of categories billed changes.' : 'You’re billed per category, not per service.'}
+              </p>
+            )}
             {listings.length ? (
               listings.map((l) => {
                 const c = categories.find((x) => x.slug === l.category)
@@ -133,6 +140,19 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
               })
             ) : (
               <p className="text-muted">No skills on file yet. <Link href="/contact" className="text-brand underline">Contact us</Link> to add them.</p>
+            )}
+            {listings.length > 0 && (
+              <div className="rounded bg-panel p-5">
+                <h3 className="mb-3 font-bold text-ink">Add or remove services</h3>
+                <SkillsEditor
+                  groups={categories.filter((c) => c.subServices.length).map((c) => ({ slug: c.slug, name: c.name, subServices: c.subServices.map((x) => ({ slug: x.slug, name: x.name })) }))}
+                  initial={listings.flatMap((l) => (l.subServices ?? []).map((x) => `${l.category}/${x}`))}
+                  price={(() => {
+                    const p = plans.find((x) => x.slug === member?.membershipPlan) ?? memberPlans[0]
+                    return p ? { amount: p.amount, currency: p.currency, interval: p.interval } : undefined
+                  })()}
+                />
+              </div>
             )}
           </div>
         ) : (

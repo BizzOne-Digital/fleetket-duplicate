@@ -3,10 +3,13 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
-import { db, getPlan } from '@/lib/content'
+import { revalidatePath } from 'next/cache'
+import { db, getCategories, getPlan } from '@/lib/content'
+import { notifyAdmin } from '@/lib/listing-service'
+import type { FormState } from '@/lib/schemas'
 import { CURRENT_MEMBERSHIP, claimPromoCode, membershipRow } from '@/lib/membership'
 import { Subscriber, User } from '@/lib/models'
-import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, isStripeConfigured, listSubscriptions } from '@/lib/stripe'
+import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, getSubscription, isStripeConfigured, listSubscriptions, setSubscriptionQuantity } from '@/lib/stripe'
 
 const DAY = 86_400
 
@@ -97,6 +100,75 @@ export async function startMembership(form: FormData) {
     await User.updateOne({ _id: user.id }, { $set: { checkoutLockUntil: null } })
   }
   redirect(url ?? '/account?membership=error')
+}
+
+/**
+ * A tasker adds or removes services at any time. Each category is its own Subscriber row: kept categories only get
+ * their services updated, new categories get a new row (same approval and membership as the rest), emptied categories
+ * are removed. A live membership keeps running — Stripe only changes how many categories it bills (prorated).
+ */
+export async function updateSkills(_prev: FormState, form: FormData): Promise<FormState> {
+  const { user, row } = await taskerMembership()
+  const categories = await getCategories()
+  const byCategory = new Map<string, string[]>()
+  for (const skill of form.getAll('skills').map(String)) {
+    const [cat, sub] = skill.split('/')
+    if (!categories.find((c) => c.slug === cat)?.subServices.some((s) => s.slug === sub)) {
+      return { ok: false, message: 'One of the chosen services is no longer available — please choose again.', errors: { skills: 'Please choose again' } }
+    }
+    if (!byCategory.get(cat)?.includes(sub)) byCategory.set(cat, [...(byCategory.get(cat) ?? []), sub])
+  }
+  if (!byCategory.size) {
+    return { ok: false, message: 'Keep at least one service. To stop completely, cancel your membership instead.', errors: { skills: 'Choose at least one service' } }
+  }
+
+  if (!(await lockCheckout(user.id))) return { ok: false, message: 'Another change is still being saved — please try again in a moment.' }
+  let billed = 0
+  let changed = false
+  try {
+    const rows = await Subscriber.find({ userId: user.id }).lean()
+    const before = new Set(rows.map((r) => r.category))
+    // Stripe first, so the bill never lags behind what the tasker is listed for.
+    if (row.stripeSubscriptionId && CURRENT_MEMBERSHIP.includes(row.membershipStatus)) {
+      const sub = await getSubscription(row.stripeSubscriptionId)
+      if (CURRENT_MEMBERSHIP.includes(sub.status) && (sub.items?.data?.[0]?.quantity ?? 1) !== byCategory.size) {
+        await setSubscriptionQuantity(sub, byCategory.size)
+        changed = true
+      }
+      if (CURRENT_MEMBERSHIP.includes(sub.status)) billed = byCategory.size
+    }
+    await Promise.all(rows.filter((r) => byCategory.has(r.category)).map((r) => Subscriber.updateOne({ _id: r._id }, { $set: { subServices: byCategory.get(r.category) } })))
+    await Subscriber.deleteMany({ userId: user.id, category: { $nin: [...byCategory.keys()] } })
+    const template = rows.find((r) => r.stripeSubscriptionId) ?? rows[0]
+    const added = [...byCategory].filter(([cat]) => !before.has(cat))
+    if (template && added.length) {
+      const { _id, category: _c, subServices: _s, createdAt: _a, updatedAt: _u, ...shared } = template as typeof template & { createdAt?: Date; updatedAt?: Date }
+      await Subscriber.insertMany(added.map(([category, subServices]) => ({ ...shared, category, subServices, ...(billed && { billedCategories: billed }) })))
+    }
+    if (billed) await Subscriber.updateMany({ userId: user.id }, { $set: { billedCategories: billed } })
+  } catch (err) {
+    console.error('[membership] skills update failed', err)
+    return { ok: false, message: 'We couldn’t save your services just now. Please try again, or contact us.' }
+  } finally {
+    await User.updateOne({ _id: user.id }, { $set: { checkoutLockUntil: null } })
+  }
+
+  const names = [...byCategory].map(([cat, subs]) => {
+    const c = categories.find((x) => x.slug === cat)!
+    return `${c.name}: ${subs.map((s) => c.subServices.find((x) => x.slug === s)?.name ?? s).join(', ')}`
+  })
+  const plan = billed ? await getPlan(row.membershipPlan) : null
+  const price = plan ? `$${(plan.amount * billed).toFixed(2)}${plan.currency ? ` ${plan.currency}` : ''} / ${plan.interval}` : ''
+  await notifyAdmin(`Tasker updated their services — ${user.name}`, { Tasker: user.name, Email: user.email, Services: names.join(' | '), Billing: billed ? `${billed} categor${billed === 1 ? 'y' : 'ies'} — ${price}` : 'no active membership' })
+  revalidatePath('/', 'layout')
+  return {
+    ok: true,
+    message: billed
+      ? changed
+        ? `Saved. You’re now billed for ${billed} categor${billed === 1 ? 'y' : 'ies'} (${price}); the difference is prorated on your next invoice. Your membership continues as normal.`
+        : `Saved — your bill is unchanged (${billed} categor${billed === 1 ? 'y' : 'ies'}, ${price}).`
+      : 'Saved — your services are updated.',
+  }
 }
 
 /**

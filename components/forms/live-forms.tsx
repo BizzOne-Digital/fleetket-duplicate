@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { login, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
+import { updateSkills } from '@/app/actions/membership'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
 import { COUNTRIES, PHONE_OPTIONAL_AD_CATEGORIES, WEEKDAYS } from '@/lib/constants'
@@ -111,8 +112,14 @@ function FormActions({ pending, label }: { pending: boolean; label: string }) {
 type SkillGroup = { slug: string; name: string; subServices: { slug: string; name: string }[] }
 
 /** Multi-select of sub-services grouped by category (“Choose skills from”). */
-function SkillPicker({ groups, error }: { groups: SkillGroup[]; error?: string }) {
-  const [selected, setSelected] = useState<string[]>([])
+function SkillPicker({ groups, error, initial = [], onChange }: { groups: SkillGroup[]; error?: string; initial?: string[]; onChange?: (selected: string[]) => void }) {
+  const [selected, setSelectedState] = useState<string[]>(initial)
+  const setSelected = (next: string[] | ((cur: string[]) => string[])) =>
+    setSelectedState((cur) => {
+      const value = typeof next === 'function' ? next(cur) : next
+      onChange?.(value)
+      return value
+    })
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState('')
   const labelOf = useMemo(() => {
@@ -306,6 +313,27 @@ export function ListingForm({ category, plan }: { category: string; plan: { dura
       <div className="flex items-center gap-6">
         <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${price}` : 'Submit ad'}</SubmitButton>
         <Link href={`/services/${category}`} className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
+      </div>
+    </form>
+  )
+}
+
+/** Account page: a tasker adds or removes services. Billing is per category, so the preview counts categories. */
+export function SkillsEditor({ groups, initial, price }: { groups: SkillGroup[]; initial: string[]; price?: { amount: number; currency: string; interval: string } }) {
+  const { state, pending, onSubmit, formRef, errors } = useFormAction(updateSkills)
+  const [selected, setSelected] = useState(initial)
+  const categories = new Set(selected.map((s) => s.split('/')[0])).size
+  return (
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="grid gap-3" aria-busy={pending}>
+      <SkillPicker groups={groups} initial={initial} onChange={setSelected} error={errors.skills} />
+      {price && categories > 0 && (
+        <p className="text-[0.8125rem]">
+          {categories} categor{categories === 1 ? 'y' : 'ies'} — ${(price.amount * categories).toFixed(2)}{price.currency ? ` ${price.currency}` : ''} / {price.interval}. More services in the same category don’t cost extra.
+        </p>
+      )}
+      <FormStatus state={state} />
+      <div>
+        <SubmitButton pending={pending} pendingLabel="Saving…" className="px-6 py-2.5">Save my services</SubmitButton>
       </div>
     </form>
   )

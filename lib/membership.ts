@@ -52,7 +52,7 @@ export async function promoCodeProblem(code: string) {
 }
 
 /** The tasker's membership row: the one carrying Stripe IDs if any (rows added later may not have them yet). */
-type MembershipRow = { name: string; email: string; stripeCustomerId: string; stripeSubscriptionId: string; membershipStatus: string; freeUntil: string }
+type MembershipRow = { name: string; email: string; stripeCustomerId: string; stripeSubscriptionId: string; membershipStatus: string; membershipPlan: string; freeUntil: string }
 export const membershipRow = (userId: string) =>
   Subscriber.findOne({ userId }).sort('-stripeCustomerId -stripeSubscriptionId').lean<MembershipRow>()
 
@@ -98,6 +98,7 @@ export async function syncMembership(sub: StripeSubscription) {
         membershipStatus: sub.status,
         renewsOn: periodEnd ? todayISO(new Date(periodEnd * 1000)) : '',
         cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end || sub.cancel_at),
+        billedCategories: sub.items?.data?.[0]?.quantity ?? 1,
       },
     },
   )

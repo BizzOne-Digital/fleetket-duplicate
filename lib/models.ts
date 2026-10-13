@@ -108,6 +108,8 @@ const subscriberSchema = new Schema(
     /** Next renewal (or end, if cancelling) — YYYY-MM-DD. */
     renewsOn: { type: String, default: '' },
     cancelAtPeriodEnd: { type: Boolean, default: false },
+    /** How many categories the Stripe subscription currently bills (quantity). */
+    billedCategories: { type: Number, default: 0 },
     /** Show on the public map (only while status is active or trial). */
     published: { type: Boolean, default: true },
     order: { type: Number, default: 0 },

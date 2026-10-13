@@ -75,6 +75,7 @@ function MembershipPanel({ s, planName }: { s: Record<string, unknown>; planName
   ]
   if (str('membershipPlan')) rows.push(['Plan', <Link key="p" href="/admin/plans" className="text-moss hover:underline">{planName ?? str('membershipPlan')}</Link>])
   if (str('renewsOn')) rows.push([s.cancelAtPeriodEnd ? 'Ends on' : status === 'trialing' ? 'First payment' : 'Renews on', str('renewsOn')])
+  if (Number(s.billedCategories) > 0) rows.push(['Categories billed', `${s.billedCategories} (one per category the tasker offers)`])
   if (str('promoCode')) rows.push(['Promo code', `${str('promoCode')}${str('freeUntil') ? ` — free until ${str('freeUntil')}` : ''}`])
   if (str('stripeCustomerId'))
     rows.push([
