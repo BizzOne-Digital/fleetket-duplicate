@@ -8,7 +8,7 @@ import { db, getCategories, getCategory, getPlan, getPlans } from '@/lib/content
 import { isDbConfigured } from '@/lib/db'
 import { Lead, Listing, Subscriber, User } from '@/lib/models'
 import { contactSchema, flattenErrors, listingSchema, loginSchema, serviceRequestSchema, taskerSchema, type FormState } from '@/lib/schemas'
-import { createSession, destroySession, hashPassword, verifyPassword } from '@/lib/auth'
+import { createSession, destroySession, getCurrentUser, hashPassword, requireUser, verifyPassword } from '@/lib/auth'
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
 import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listings'
 import { rateLimited } from '@/lib/rate-limit'
@@ -250,7 +250,8 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
   const paid = quote.amount > 0
   const status = paid ? 'awaiting-payment' : plan.requiresApproval ? 'pending-review' : 'published'
   await db()
-  const listing = await Listing.create({ ...data, photo: photoUrl, amount: quote.amount, currency: plan.currency || 'CAD', status })
+  const user = await getCurrentUser()
+  const listing = await Listing.create({ ...data, userId: user?.id, photo: photoUrl, amount: quote.amount, currency: plan.currency || 'CAD', status })
   const summary = {
     Ad: data.title,
     Category: category.name,
@@ -295,6 +296,54 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
   }
   if (!checkoutUrl) return { ok: false, message: 'We couldn’t open the payment page just now. Please try again in a moment.' }
   redirect(checkoutUrl)
+}
+
+/**
+ * The poster edits one of their own ads. Dates and price are fixed once booked; an edited ad in a
+ * reviewed category (free ads) goes back to the team before it shows again.
+ */
+export async function updateListing(_prev: FormState, form: FormData): Promise<FormState> {
+  const user = await getCurrentUser()
+  if (!user) return { ok: false, message: 'Please sign in again to edit your ad.' }
+  const id = String(form.get('id') ?? '')
+  await db()
+  const listing = isValidObjectId(id) ? await Listing.findOne({ _id: id, userId: user.id }).lean() : null
+  if (!listing || listing.status === 'cancelled') return { ok: false, message: 'That ad can’t be edited.' }
+  const parsed = listingSchema.safeParse({ ...fd(form), category: listing.category, startDate: listing.startDate, endDate: listing.endDate })
+  if (!parsed.success) return { ok: false, message: CHECK_FIELDS, errors: flattenErrors(parsed.error) }
+  if (await rateLimited('listing-edit', 20, 60 * 60_000)) return TOO_MANY
+
+  const plan = await getCategory(listing.category).then((c) => (c ? getPlan(c.plan) : null))
+  const { website: _hp, terms: _t, category: _c, startDate: _s, endDate: _e, ...data } = parsed.data
+  if (plan?.addressRequired && data.address.length < 5) return { ok: false, message: CHECK_FIELDS, errors: { address: 'Please enter the street address' } }
+
+  const photo = form.get('photo')
+  let photoUrl = listing.photo
+  if (photo instanceof File && photo.size > 0) {
+    const stored = await storeImage(photo, 'listings', { maxBytes: PHOTO_MAX_BYTES, meta: { alt: data.title.slice(0, 300), title: data.title.slice(0, 200) } })
+    if ('error' in stored) return { ok: false, message: CHECK_FIELDS, errors: { photo: stored.error } }
+    photoUrl = stored.url
+  }
+  const recheck = Boolean(plan?.requiresApproval) && listing.status === 'published'
+  await Listing.updateOne({ _id: listing._id }, { $set: { ...data, photo: photoUrl, ...(recheck && { status: 'pending-review' }) } })
+  revalidatePath(`/services/${listing.category}`)
+  revalidatePath('/account')
+  if (recheck) {
+    await notifyAdmin(`Edited ad to approve — ${data.title}`, { Ad: data.title, Category: listing.category, Contact: `${data.contactName} <${data.email}> ${data.phone}`, Description: data.description, Admin: adminListingUrl(listing._id) }, data.email)
+    return { ok: true, message: 'Saved. Our team will check your changes and put the ad back live shortly.' }
+  }
+  return { ok: true, message: 'Your ad has been updated.' }
+}
+
+/** The poster takes one of their ads down early. No refund is implied — paid time simply ends. */
+export async function closeListing(form: FormData) {
+  const user = await requireUser('/account')
+  const id = String(form.get('id') ?? '')
+  if (!isValidObjectId(id)) return
+  await db()
+  const listing = await Listing.findOneAndUpdate({ _id: id, userId: user.id, status: { $ne: 'cancelled' } }, { $set: { status: 'cancelled' } }).lean()
+  if (listing) revalidatePath(`/services/${listing.category}`)
+  revalidatePath('/account')
 }
 
 export async function login(_prev: FormState, form: FormData): Promise<FormState> {

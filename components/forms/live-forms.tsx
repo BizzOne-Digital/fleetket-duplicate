@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
-import { login, registerTasker, submitContact, submitListing, submitServiceRequest } from '@/app/actions/public'
+import { login, registerTasker, submitContact, submitListing, submitServiceRequest, updateListing } from '@/app/actions/public'
 import { updateSkills } from '@/app/actions/membership'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
@@ -260,33 +260,48 @@ export function LoginForm({ next }: { next?: string }) {
 }
 
 /** Post an ad in a listing category — shows the price for the chosen dates before paying. */
-export function ListingForm({ category, plan }: { category: string; plan: { durations: ListingDuration[]; currency: string; addressRequired: boolean; requiresApproval: boolean } }) {
-  const { state, pending, onSubmit, formRef, errors } = useFormAction(submitListing)
+export type EditableAd = { id: string; title: string; description: string; startDate: string; endDate: string; address: string; city: string; region: string; postalCode: string; contactName: string; email: string; phone: string }
+
+/** Posts a new ad, or with `ad` edits one the signed-in poster owns (dates and price stay as booked). */
+export function ListingForm({ category, plan, ad, defaults }: { category: string; plan: { durations: ListingDuration[]; currency: string; addressRequired: boolean; requiresApproval: boolean }; ad?: EditableAd; defaults?: Partial<EditableAd> }) {
+  const { state, pending, onSubmit, formRef, errors } = useFormAction(ad ? updateListing : submitListing)
   const today = todayISO()
-  const [start, setStart] = useState(today)
-  const [end, setEnd] = useState(today)
+  const [start, setStart] = useState(ad?.startDate ?? today)
+  const [end, setEnd] = useState(ad?.endDate ?? today)
+  const v = ad ?? defaults ?? {}
   const quote = quoteListing(plan.durations, start, end)
   const maxDays = maxListingDays(plan.durations)
   const price = quote ? formatMoney(quote.amount, plan.currency || 'CAD') : null
   const paid = Boolean(quote && quote.amount > 0)
 
-  if (state?.ok) return <FormStatus state={state} />
+  if (state?.ok)
+    return (
+      <div className="grid gap-4">
+        <FormStatus state={state} />
+        {ad && <Link href="/account#ads" className="justify-self-start rounded bg-brand-light px-5 py-2.5 text-white hover:bg-brand">Back to my ads</Link>}
+      </div>
+    )
 
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="relative grid gap-3" aria-busy={pending}>
       <Honeypot />
       <input type="hidden" name="category" value={category} />
-      <TextField label="Ad title" name="title" required maxLength={120} error={errors.title} />
-      <TextAreaField label="Description" name="description" required rows={5} maxLength={3000} error={errors.description} />
+      {ad && <input type="hidden" name="id" value={ad.id} />}
+      <TextField label="Ad title" name="title" required maxLength={120} defaultValue={v.title} error={errors.title} />
+      <TextAreaField label="Description" name="description" required rows={5} maxLength={3000} defaultValue={v.description} error={errors.description} />
+      {ad ? (
+        <p className="rounded bg-panel px-4 py-3 text-[0.9375rem]">Runs {ad.startDate} → {ad.endDate}. Dates can’t be changed once booked — post a new ad for different dates.</p>
+      ) : (
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField label="Start date" name="startDate" type="date" required min={today} value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value) }} error={errors.startDate} />
         <TextField label="End date" name="endDate" type="date" required min={start} value={end} onChange={(e) => setEnd(e.target.value)} hint={`Up to ${maxDays} days`} error={errors.endDate} />
       </div>
-      <TextField label="Street address" name="address" required={plan.addressRequired} autoComplete="street-address" error={errors.address} />
+      )}
+      <TextField label="Street address" name="address" required={plan.addressRequired} autoComplete="street-address" defaultValue={v.address} error={errors.address} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <TextField label="City" name="city" required autoComplete="address-level2" error={errors.city} />
-        <TextField label="Province / State" name="region" autoComplete="address-level1" error={errors.region} />
-        <TextField label="Postal Code" name="postalCode" autoComplete="postal-code" className="col-span-2 sm:col-span-1" error={errors.postalCode} />
+        <TextField label="City" name="city" required autoComplete="address-level2" defaultValue={v.city} error={errors.city} />
+        <TextField label="Province / State" name="region" autoComplete="address-level1" defaultValue={v.region} error={errors.region} />
+        <TextField label="Postal Code" name="postalCode" autoComplete="postal-code" defaultValue={v.postalCode} className="col-span-2 sm:col-span-1" error={errors.postalCode} />
       </div>
       <div>
         <label htmlFor="photo" className="mb-1 block text-[0.8125rem] font-semibold text-ink">Photo <span className="font-normal text-muted">(optional, JPEG, PNG or WebP up to 5 MB)</span></label>
@@ -294,11 +309,12 @@ export function ListingForm({ category, plan }: { category: string; plan: { dura
         {errors.photo && <p role="alert" className="mt-1 text-xs text-brand">{errors.photo}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <TextField label="Your name" name="contactName" required autoComplete="name" error={errors.contactName} />
-        <TextField label="Email address" name="email" type="email" required autoComplete="email" hint="Private — for your receipt and updates" error={errors.email} />
+        <TextField label="Your name" name="contactName" required autoComplete="name" defaultValue={v.contactName} error={errors.contactName} />
+        <TextField label="Email address" name="email" type="email" required autoComplete="email" defaultValue={v.email} hint="Private — for your receipt and updates" error={errors.email} />
       </div>
-      <TextField label={PHONE_OPTIONAL_AD_CATEGORIES.includes(category) ? 'Phone (shown on the ad, optional)' : 'Phone (shown on the ad)'} name="phone" type="tel" autoComplete="tel" required={!PHONE_OPTIONAL_AD_CATEGORIES.includes(category)} error={errors.phone} />
+      <TextField label={PHONE_OPTIONAL_AD_CATEGORIES.includes(category) ? 'Phone (shown on the ad, optional)' : 'Phone (shown on the ad)'} name="phone" type="tel" autoComplete="tel" defaultValue={v.phone} required={!PHONE_OPTIONAL_AD_CATEGORIES.includes(category)} error={errors.phone} />
       <TermsBox error={errors.terms} />
+      {!ad && (
       <p aria-live="polite" className="rounded bg-panel px-4 py-3 text-[0.9375rem]">
         {quote ? (
           <>
@@ -309,10 +325,15 @@ export function ListingForm({ category, plan }: { category: string; plan: { dura
           <span className="text-brand">Choose dates within {maxDays} days.</span>
         )}
       </p>
+      )}
       <FormStatus state={state} />
       <div className="flex items-center gap-6">
-        <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${price}` : 'Submit ad'}</SubmitButton>
-        <Link href={`/services/${category}`} className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
+        {ad ? (
+          <SubmitButton pending={pending} pendingLabel="Saving…">Save changes</SubmitButton>
+        ) : (
+          <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${price}` : 'Submit ad'}</SubmitButton>
+        )}
+        <Link href={ad ? '/account#ads' : `/services/${category}`} className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
       </div>
     </form>
   )

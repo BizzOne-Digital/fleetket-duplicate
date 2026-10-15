@@ -140,6 +140,8 @@ const listingSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
     category: { type: String, required: true, index: true },
+    /** The signed-in poster — one profile can run any number of ads. Empty for ads posted without signing in. */
+    userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     status: { type: String, enum: LISTING_STATUSES, default: 'pending-review' },
     /** YYYY-MM-DD, inclusive. Strings so “ends today” never shifts with the server's time zone. */
     startDate: { type: String, required: true },

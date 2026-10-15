@@ -1,12 +1,12 @@
 import Link from 'next/link'
-import { logout } from '@/app/actions/public'
+import { closeListing, logout } from '@/app/actions/public'
 import { SkillsEditor } from '@/components/forms/live-forms'
 import { openBillingPortal, startMembership } from '@/app/actions/membership'
 import { requireUser } from '@/lib/auth'
 import { db, formatPlanPrice, getCategories, getPlans } from '@/lib/content'
 import { CURRENT_MEMBERSHIP } from '@/lib/membership'
 import { isStripeConfigured } from '@/lib/stripe'
-import { Subscriber } from '@/lib/models'
+import { Listing, Subscriber } from '@/lib/models'
 import { isAdminRole } from '@/lib/constants'
 import { noIndexMetadata } from '@/lib/seo'
 
@@ -19,6 +19,13 @@ const STATUS_COPY: Record<string, string> = {
   'past-due': 'Payment overdue — please contact us.',
   paused: 'Paused — not shown to customers.',
   cancelled: 'Cancelled.',
+}
+
+const AD_STATUS: Record<string, string> = {
+  'awaiting-payment': 'Awaiting payment',
+  'pending-review': 'Being reviewed by our team',
+  published: 'Live',
+  rejected: 'Not approved — contact us',
 }
 
 const MEMBERSHIP_NOTICE: Record<string, { ok: boolean; text: string }> = {
@@ -47,6 +54,13 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
   const provider = user.role === 'provider'
   await db()
   const [listings, categories, plans] = provider ? await Promise.all([Subscriber.find({ userId: user.id }).lean(), getCategories(), getPlans()]) : [[], [], []]
+  const [ads, adCategories, allPlans] = await Promise.all([
+    Listing.find({ userId: user.id, status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).lean(),
+    provider ? categories : getCategories(),
+    provider ? plans : getPlans(),
+  ])
+  const listingPlans = new Set(allPlans.filter((p) => p.billing === 'listing').map((p) => p.slug))
+  const today = new Date().toISOString().slice(0, 10)
   const member = listings.find((l) => l.stripeSubscriptionId) ?? listings.find((l) => l.stripeCustomerId) ?? listings[0]
   const current = member && CURRENT_MEMBERSHIP.includes(member.membershipStatus ?? '')
   // Back from Checkout: only say “confirmed” once the webhook has recorded it.
@@ -162,6 +176,40 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
             <Link href="/#services" className="mt-4 inline-block rounded bg-brand-light px-5 py-2.5 text-white hover:bg-brand">Browse services</Link>
           </div>
         )}
+
+        <div id="ads" className="mt-6 grid gap-3">
+          <h2 className="text-[1.25rem] font-bold text-ink">Your ads</h2>
+          {ads.length ? (
+            ads.map((a) => {
+              const ended = a.endDate < today
+              return (
+                <div key={String(a._id)} className="flex flex-wrap items-start justify-between gap-3 rounded border border-line bg-white p-4">
+                  <div>
+                    <p className="font-bold text-ink">{a.title}</p>
+                    <p className="text-[0.8125rem]">{adCategories.find((c) => c.slug === a.category)?.name ?? a.category} · {a.startDate} → {a.endDate}{a.address ? ` · ${a.address}` : ''}</p>
+                    <p className="mt-1 text-[0.8125rem] font-semibold text-brand">{ended ? 'Ended' : a.published === false ? 'Hidden by our team' : (AD_STATUS[a.status] ?? a.status)}</p>
+                  </div>
+                  {!ended && (
+                    <div className="flex items-center gap-3 text-[0.9375rem]">
+                      <Link href={`/services/${a.category}/post?edit=${String(a._id)}`} className="text-brand-dark hover:underline">Edit</Link>
+                      <form action={closeListing}>
+                        <input type="hidden" name="id" value={String(a._id)} />
+                        <button type="submit" className="text-muted hover:text-brand">Take down</button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          ) : (
+            <p className="text-muted">You haven’t posted any ads yet.</p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            {adCategories.filter((c) => listingPlans.has(c.plan)).map((c) => (
+              <Link key={c.slug} href={`/services/${c.slug}/post`} className="rounded border border-brand px-4 py-2 text-[0.9375rem] text-brand hover:bg-brand hover:text-white">+ New {c.name} ad</Link>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-4">
           {isAdminRole(user.role) && <Link href="/admin" className="rounded bg-member px-5 py-2.5 text-white hover:bg-member-dark">Open admin dashboard</Link>}
