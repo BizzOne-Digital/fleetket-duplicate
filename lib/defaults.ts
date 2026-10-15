@@ -77,6 +77,18 @@ export const LISTING_PLANS = [
   },
 ]
 
+/** Service category for realtors to sign up as taskers (added after launch; see seed v4 in lib/content.ts). */
+export const REALTOR_CATEGORY: CategorySeed = {
+  name: 'Real Estate',
+  slug: 'real-estate',
+  group: 'Home & Property',
+  icon: 'home',
+  description: 'Licensed realtors to help you buy, sell or rent a home.',
+  image: img('photo-1568605114967-8130f3a36994'),
+  imageAlt: 'House for sale',
+  subServices: [{ name: 'Realtor', slug: 'realtor', description: 'Buying, selling and renting homes with a licensed realtor.', image: img('photo-1568605114967-8130f3a36994') }],
+}
+
 export const LISTING_CATEGORIES: (CategorySeed & { plan: string })[] = [
   {
     name: 'Open House - Realtors',

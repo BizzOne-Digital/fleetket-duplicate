@@ -47,13 +47,14 @@ export async function emailListingLive(l: ListingLike) {
  */
 export async function confirmListingPayment(session: CheckoutSession) {
   const id = session.client_reference_id
-  if (session.payment_status !== 'paid' || !id || !isValidObjectId(id)) return null
+  if (session.payment_status === 'unpaid' || !id || !isValidObjectId(id)) return null
   await connectDb()
   const listing = await Listing.findById(id).lean()
   if (!listing) return null
   if (listing.paymentRef === session.id) return listing // already confirmed
-  if (session.amount_total !== Math.round((listing.amount ?? 0) * 100)) {
-    console.error('[stripe] amount mismatch for listing', id, session.amount_total)
+  // Subtotal: a Stripe promo code may lower what was actually charged.
+  if (session.amount_subtotal !== Math.round((listing.amount ?? 0) * 100)) {
+    console.error('[stripe] amount mismatch for listing', id, session.amount_subtotal)
     return null
   }
 

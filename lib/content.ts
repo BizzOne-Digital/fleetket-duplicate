@@ -4,7 +4,7 @@ import { unstable_cache } from 'next/cache'
 import { geocode } from './geocode'
 import { connectDb, isDbConfigured } from './db'
 import { Category as CategoryModel, City, Content, Faq, Listing as ListingModel, Plan as PlanModel, Subscriber, User } from './models'
-import { DEFAULT_CATEGORIES, DEFAULT_CITIES, DEFAULT_CONTENT, DEFAULT_FAQS, LISTING_CATEGORIES, LISTING_PLANS, type CategorySeed, type DefaultContent } from './defaults'
+import { DEFAULT_CATEGORIES, DEFAULT_CITIES, DEFAULT_CONTENT, DEFAULT_FAQS, LISTING_CATEGORIES, LISTING_PLANS, REALTOR_CATEGORY, type CategorySeed, type DefaultContent } from './defaults'
 import { todayISO, type ListingDuration } from './listings'
 import { LIVE_SUBSCRIBER_STATUSES } from './constants'
 import { hashPassword } from './auth'
@@ -115,6 +115,12 @@ async function seed() {
         CategoryModel.updateOne({ slug: c.slug }, { $setOnInsert: { ...c, order: (last?.order ?? 0) + 1 + i, published: true } }, { upsert: true }),
       ),
     )
+  })
+
+  // v4 (one-time, additive): Real Estate / Realtor so realtors can pick it when signing up.
+  await once('__seeded_v4', async () => {
+    const last = await CategoryModel.findOne().sort({ order: -1 }).select('order').lean<{ order?: number }>()
+    await CategoryModel.updateOne({ slug: REALTOR_CATEGORY.slug }, { $setOnInsert: { ...REALTOR_CATEGORY, order: (last?.order ?? 0) + 1, published: true } }, { upsert: true })
   })
 
   // Bootstrap the first owner account from env, only while no administrator exists.

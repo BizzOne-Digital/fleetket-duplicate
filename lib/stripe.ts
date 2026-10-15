@@ -17,6 +17,8 @@ export type CheckoutSession = {
   payment_status: 'paid' | 'unpaid' | 'no_payment_required'
   client_reference_id: string | null
   amount_total: number | null
+  /** Before discounts (promo codes). */
+  amount_subtotal?: number | null
   currency: string | null
 }
 
@@ -131,6 +133,7 @@ export function createCheckoutSession(o: { listingId: string; name: string; amou
     'checkout/sessions',
     new URLSearchParams({
       mode: 'payment',
+      allow_promotion_codes: 'true',
       client_reference_id: o.listingId,
       'metadata[listingId]': o.listingId,
       customer_email: o.email,
