@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { AtSign } from 'lucide-react'
 import { SocialIcon } from '@/components/live/social-icons'
-import { CookiePreferencesButton } from '@/components/site/consent'
 import { getContent } from '@/lib/content'
 
 export async function LiveFooter() {
@@ -34,7 +33,6 @@ export async function LiveFooter() {
           <ul className="flex flex-wrap items-center gap-y-2">
             <li className="pr-2"><Link href="/terms" className="hover:underline">Terms &amp; Conditions</Link></li>
             <li className="border-l border-white/70 px-2"><Link href="/privacy" className="hover:underline">Privacy Policy</Link></li>
-            <li className="border-l border-white/70 px-2"><CookiePreferencesButton className="hover:underline" /></li>
             {socials.map((s) => (
               <li key={s.label} className="pl-3">
                 <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={`Fleeket on ${s.label}`} className="block transition-opacity hover:opacity-80">

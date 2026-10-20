@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { ChevronDown, X } from 'lucide-react'
-import { login, registerTasker, submitContact, submitListing, submitServiceRequest, updateListing } from '@/app/actions/public'
+import { checkAdPromoCode, login, registerTasker, submitContact, submitListing, submitServiceRequest, updateListing } from '@/app/actions/public'
 import { updateSkills } from '@/app/actions/membership'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
@@ -273,6 +273,19 @@ export function ListingForm({ category, plan, ad, defaults }: { category: string
   const maxDays = maxListingDays(plan.durations)
   const price = quote ? formatMoney(quote.amount, plan.currency || 'CAD') : null
   const paid = Boolean(quote && quote.amount > 0)
+  const [promoCode, setPromoCode] = useState('')
+  const [promo, setPromo] = useState<{ key: string; result: Awaited<ReturnType<typeof checkAdPromoCode>> } | null>(null)
+  const [checkingPromo, startPromoCheck] = useTransition()
+  const promoKey = `${promoCode.trim().toUpperCase()}|${start}|${end}`
+  // A result only counts for the code and dates it was checked with.
+  const applied = promo?.key === promoKey && promo.result.ok ? promo.result : null
+  const promoError = promo?.key === promoKey && !promo.result.ok ? promo.result.message : errors.promoCode
+  const applyPromo = () =>
+    startPromoCheck(async () => {
+      const key = promoKey
+      setPromo({ key, result: await checkAdPromoCode({ code: promoCode, category, startDate: start, endDate: end }) })
+    })
+  const total = applied ? formatMoney(applied.total, plan.currency || 'CAD') : price
 
   if (state?.ok)
     return (
@@ -314,11 +327,34 @@ export function ListingForm({ category, plan, ad, defaults }: { category: string
       </div>
       <TextField label={PHONE_OPTIONAL_AD_CATEGORIES.includes(category) ? 'Phone (shown on the ad, optional)' : 'Phone (shown on the ad)'} name="phone" type="tel" autoComplete="tel" defaultValue={v.phone} required={!PHONE_OPTIONAL_AD_CATEGORIES.includes(category)} error={errors.phone} />
       <TermsBox error={errors.terms} />
+      {!ad && paid && (
+        <div>
+          <label htmlFor="promoCode" className="mb-1 block text-[0.8125rem] font-semibold text-ink">Promo code <span className="font-normal text-muted">(optional)</span></label>
+          <div className="flex gap-2">
+            <input
+              id="promoCode"
+              name="promoCode"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (promoCode.trim()) applyPromo() } }}
+              autoComplete="off"
+              maxLength={40}
+              aria-invalid={promoError ? true : undefined}
+              className="live-input uppercase"
+            />
+            <button type="button" onClick={applyPromo} disabled={!promoCode.trim() || checkingPromo} className="shrink-0 rounded border border-brand px-4 text-[0.9375rem] text-brand hover:bg-brand hover:text-white disabled:opacity-50">
+              {checkingPromo ? 'Checking…' : 'Apply'}
+            </button>
+          </div>
+          {applied && <p className="mt-1 text-xs font-semibold text-brand-dark">Code applied — {applied.label}</p>}
+          {promoError && <p role="alert" className="mt-1 text-xs text-brand">{promoError}</p>}
+        </div>
+      )}
       {!ad && (
       <p aria-live="polite" className="rounded bg-panel px-4 py-3 text-[0.9375rem]">
         {quote ? (
           <>
-            {quote.days} day{quote.days === 1 ? '' : 's'} · <strong className="text-brand">{price}</strong>
+            {quote.label} · {applied && <s className="text-muted">{price}</s>} <strong className="text-brand">{total}</strong>
             {plan.requiresApproval && <span className="text-muted"> · reviewed by our team before it goes live</span>}
           </>
         ) : (
@@ -331,7 +367,7 @@ export function ListingForm({ category, plan, ad, defaults }: { category: string
         {ad ? (
           <SubmitButton pending={pending} pendingLabel="Saving…">Save changes</SubmitButton>
         ) : (
-          <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${price}` : 'Submit ad'}</SubmitButton>
+          <SubmitButton pending={pending} pendingLabel={paid ? 'Opening payment…' : 'Sending…'}>{paid ? `Continue to payment — ${total}` : 'Submit ad'}</SubmitButton>
         )}
         <Link href={ad ? '/account#ads' : `/services/${category}`} className="text-[0.9375rem] text-brand-dark hover:underline">Cancel</Link>
       </div>

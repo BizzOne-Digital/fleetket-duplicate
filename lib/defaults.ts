@@ -306,7 +306,7 @@ export const DEFAULT_CONTENT = {
       },
       {
         heading: 'Cookies and consent',
-        body: 'We use essential cookies to operate the Service and keep it secure. With your consent, we may also use analytics cookies to understand performance and advertising cookies to measure campaigns. You can accept or reject non-essential cookies using the consent banner and change your choice at any time from the “Cookie preferences” link in the footer.',
+        body: 'We use essential cookies to operate the Service and keep it secure. We also use analytics cookies (Google Analytics) to understand how the Service is used and improve it. We also use advertising cookies to measure campaigns and show relevant ads. You can block or delete cookies at any time in your browser settings.',
       },
       {
         heading: 'Your choices and rights',

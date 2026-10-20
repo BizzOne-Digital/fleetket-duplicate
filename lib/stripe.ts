@@ -128,12 +128,12 @@ export const createPortalSession = (customerId: string, returnUrl: string) =>
   stripe<{ url: string }>('billing_portal/sessions', new URLSearchParams({ customer: customerId, return_url: returnUrl }))
 
 /** A one-off payment for one ad. `successUrl` must contain {CHECKOUT_SESSION_ID}. */
-export function createCheckoutSession(o: { listingId: string; name: string; amount: number; currency: string; email: string; successUrl: string; cancelUrl: string }) {
+export function createCheckoutSession(o: { listingId: string; name: string; amount: number; currency: string; email: string; successUrl: string; cancelUrl: string; promotionCodeId?: string }) {
   return stripe<CheckoutSession>(
     'checkout/sessions',
     new URLSearchParams({
+      ...(o.promotionCodeId ? { 'discounts[0][promotion_code]': o.promotionCodeId } : {}),
       mode: 'payment',
-      allow_promotion_codes: 'true',
       client_reference_id: o.listingId,
       'metadata[listingId]': o.listingId,
       customer_email: o.email,
@@ -158,4 +158,32 @@ export function verifyWebhook(payload: string, header: string | null, secret: st
   if (!t || !signatures.length || Math.abs(Date.now() / 1000 - Number(t)) > toleranceSec) return null
   const expected = createHmac('sha256', secret).update(`${t}.${payload}`).digest()
   return signatures.some((s) => s.length === expected.length && timingSafeEqual(s, expected)) ? JSON.parse(payload) : null
+}
+
+type StripePromotionCode = {
+  id: string
+  active: boolean
+  coupon: { valid: boolean; percent_off: number | null; amount_off: number | null; currency: string | null }
+  restrictions?: { minimum_amount?: number | null; minimum_amount_currency?: string | null }
+}
+
+/**
+ * Looks up an active Stripe promotion code (created in the Stripe Dashboard) and prices `amount` with it.
+ * Returns null when the code doesn't exist, has expired/run out, or doesn't apply to this price.
+ */
+export async function priceWithPromotionCode(code: string, amount: number, currency: string) {
+  const res = await stripe<{ data: StripePromotionCode[] }>(`promotion_codes?active=true&limit=1&code=${encodeURIComponent(code)}`)
+  const promo = res.data[0]
+  if (!promo?.active || !promo.coupon.valid) return null
+  const cents = Math.round(amount * 100)
+  const cur = currency.toLowerCase()
+  const min = promo.restrictions?.minimum_amount
+  if (min && (promo.restrictions?.minimum_amount_currency ?? cur) === cur && cents < min) return null
+  const { percent_off, amount_off } = promo.coupon
+  let off = 0
+  if (percent_off) off = Math.round((cents * percent_off) / 100)
+  else if (amount_off && promo.coupon.currency === cur) off = amount_off
+  else return null // fixed-amount coupon in another currency
+  const total = Math.max(0, cents - off) / 100
+  return { id: promo.id, total, label: percent_off ? `${percent_off}% off` : `${(amount_off! / 100).toFixed(2)} off` }
 }

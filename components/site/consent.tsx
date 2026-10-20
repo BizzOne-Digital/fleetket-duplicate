@@ -61,7 +61,7 @@ function Toggle({ label, desc, checked, onChange, locked }: { label: string; des
 /**
  * First visit: a welcome dialog the visitor must accept (Privacy Policy + Terms) before using the site,
  * combined with their cookie choice so it's one decision, not two.
- * Consent-first: GA4 loads only when NEXT_PUBLIC_GA_ID is set AND analytics consent is granted.
+ * GA4 analytics and advertising run whenever NEXT_PUBLIC_GA_ID is set.
  * The legal pages themselves are never blocked, so the documents can always be read first.
  */
 export function ConsentManager({ gaId }: { gaId?: string }) {
@@ -116,23 +116,17 @@ export function ConsentManager({ gaId }: { gaId?: string }) {
     setConsent(value)
     setWelcome(false)
     setPrefs(false)
-    const w = window as unknown as { gtag?: (...args: unknown[]) => void }
-    w.gtag?.('consent', 'update', {
-      analytics_storage: value.analytics ? 'granted' : 'denied',
-      ad_storage: value.marketing ? 'granted' : 'denied',
-      ad_user_data: value.marketing ? 'granted' : 'denied',
-      ad_personalization: value.marketing ? 'granted' : 'denied',
-    })
   }
 
   return (
     <>
-      {gaId && consent?.analytics && (
+      {/* GA4 analytics and advertising are always on. */}
+      {gaId && (
         <>
           <Script src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`} strategy="afterInteractive" />
           <Script id="ga4" strategy="afterInteractive">
             {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}window.gtag=gtag;
-gtag('consent','default',{analytics_storage:'granted',ad_storage:'${consent.marketing ? 'granted' : 'denied'}',ad_user_data:'${consent.marketing ? 'granted' : 'denied'}',ad_personalization:'${consent.marketing ? 'granted' : 'denied'}'});
+gtag('consent','default',{analytics_storage:'granted',ad_storage:'granted',ad_user_data:'granted',ad_personalization:'granted'});
 gtag('js',new Date());gtag('config',${JSON.stringify(gaId)},{anonymize_ip:true});`}
           </Script>
         </>
@@ -180,10 +174,9 @@ gtag('js',new Date());gtag('config',${JSON.stringify(gaId)},{anonymize_ip:true})
 
               <div className="mt-6 border-t border-line pt-5">
                 <p className="text-sm font-semibold">Cookies</p>
-                <p className="mt-1 text-sm text-muted">Essential cookies keep the site running. Analytics and advertising cookies are optional.</p>
+                <p className="mt-1 text-sm text-muted">Essential cookies keep the site running. Analytics cookies help us improve the site. Advertising cookies are optional.</p>
                 <div className="mt-2 divide-y divide-line">
                   <Toggle label="Essential" desc="Sign-in, security and your choices" checked locked />
-                  <Toggle label="Analytics" desc="Help us understand how the site is used" checked={draft.analytics} onChange={(v) => setDraft((d) => ({ ...d, analytics: v }))} />
                   <Toggle label="Advertising" desc="Measure campaigns and relevance" checked={draft.marketing} onChange={(v) => setDraft((d) => ({ ...d, marketing: v }))} />
                 </div>
               </div>
@@ -214,7 +207,6 @@ gtag('js',new Date());gtag('config',${JSON.stringify(gaId)},{anonymize_ip:true})
             <p className="text-base font-bold text-ink">Cookie preferences</p>
             <div className="mt-2 divide-y divide-line">
               <Toggle label="Essential" desc="Sign-in, security and your choices" checked locked />
-              <Toggle label="Analytics" desc="Understand how the site is used" checked={draft.analytics} onChange={(v) => setDraft((d) => ({ ...d, analytics: v }))} />
               <Toggle label="Advertising" desc="Measure campaigns and relevance" checked={draft.marketing} onChange={(v) => setDraft((d) => ({ ...d, marketing: v }))} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">

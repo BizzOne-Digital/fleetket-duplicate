@@ -90,6 +90,7 @@ export const listingSchema = z
   phone,
   terms: z.literal(true, 'Please read and accept the Terms & Conditions'),
   website: honeypot,
+  promoCode: text(40),
   })
   .refine((d) => d.phone !== '' || PHONE_OPTIONAL_AD_CATEGORIES.includes(d.category), { message: 'Please add a phone number so people can reach you', path: ['phone'] })
 

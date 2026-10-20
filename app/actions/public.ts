@@ -12,7 +12,7 @@ import { createSession, destroySession, getCurrentUser, hashPassword, requireUse
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
 import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listings'
 import { rateLimited } from '@/lib/rate-limit'
-import { createCheckoutSession, isStripeConfigured } from '@/lib/stripe'
+import { createCheckoutSession, isStripeConfigured, priceWithPromotionCode } from '@/lib/stripe'
 import { storeImage } from '@/lib/uploads'
 import { geocode } from '@/lib/geocode'
 import { claimPromoCode, promoCodeProblem, releasePromoCode } from '@/lib/membership'
@@ -224,7 +224,7 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
   if (!isDbConfigured) return NOT_CONFIGURED
   if (await rateLimited('listing', 6, 60 * 60_000)) return TOO_MANY
 
-  const { website: _hp, terms: _t, ...data } = parsed.data
+  const { website: _hp, terms: _t, promoCode, ...data } = parsed.data
   const category = await getCategory(data.category)
   const plan = category ? await getPlan(category.plan) : null
   if (!category || plan?.billing !== 'listing') return { ok: false, message: 'Ads can’t be posted in that category right now.' }
@@ -245,6 +245,12 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
     if ('error' in stored) errors.photo = stored.error
     else photoUrl = stored.url
   }
+  // Re-check the promo code here — the price shown in the form is only a preview.
+  let promo: Awaited<ReturnType<typeof priceWithPromotionCode>> = null
+  if (promoCode && quote && quote.amount > 0 && isStripeConfigured) {
+    promo = await priceWithPromotionCode(promoCode, quote.amount, plan.currency || 'CAD').catch(() => null)
+    if (!promo) errors.promoCode = 'That promo code isn’t valid or has expired'
+  }
   if (Object.keys(errors).length || !quote) return { ok: false, message: CHECK_FIELDS, errors }
 
   const paid = quote.amount > 0
@@ -257,7 +263,7 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
     Category: category.name,
     Dates: `${data.startDate} → ${data.endDate} (${quote.days} day${quote.days === 1 ? '' : 's'}, ${quote.label})`,
     Address: [data.address, data.city, data.region, data.postalCode].filter(Boolean).join(', '),
-    Price: formatMoney(quote.amount, plan.currency || 'CAD'),
+    Price: formatMoney(quote.amount, plan.currency || 'CAD') + (promo ? ` — promo ${promoCode} (${promo.label}): ${formatMoney(promo.total, plan.currency || 'CAD')}` : ''),
     Contact: `${data.contactName} <${data.email}> ${data.phone}`,
     Description: data.description,
     Admin: adminListingUrl(listing._id),
@@ -289,6 +295,7 @@ export async function submitListing(_prev: FormState, form: FormData): Promise<F
       email: data.email,
       successUrl: `${origin}/api/listings/confirm?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${origin}/services/${category.slug}/post?done=cancelled`,
+      promotionCodeId: promo?.id,
     })
     checkoutUrl = session.url
   } catch (err) {
@@ -314,7 +321,7 @@ export async function updateListing(_prev: FormState, form: FormData): Promise<F
   if (await rateLimited('listing-edit', 20, 60 * 60_000)) return TOO_MANY
 
   const plan = await getCategory(listing.category).then((c) => (c ? getPlan(c.plan) : null))
-  const { website: _hp, terms: _t, category: _c, startDate: _s, endDate: _e, ...data } = parsed.data
+  const { website: _hp, terms: _t, promoCode: _p, category: _c, startDate: _s, endDate: _e, ...data } = parsed.data
   if (plan?.addressRequired && data.address.length < 5) return { ok: false, message: CHECK_FIELDS, errors: { address: 'Please enter the street address' } }
 
   const photo = form.get('photo')
@@ -366,4 +373,19 @@ export async function login(_prev: FormState, form: FormData): Promise<FormState
 export async function logout() {
   await destroySession()
   redirect('/')
+}
+
+/** Live preview for the ad form's promo code box: the price for these dates with the code applied. */
+export async function checkAdPromoCode(input: { code: string; category: string; startDate: string; endDate: string }): Promise<{ ok: true; total: number; label: string } | { ok: false; message: string }> {
+  const code = String(input.code ?? '').trim().slice(0, 40)
+  if (!code) return { ok: false, message: 'Enter a promo code' }
+  if (!isStripeConfigured) return { ok: false, message: 'Promo codes aren’t available right now' }
+  if (await rateLimited('ad-promo', 30, 10 * 60_000)) return { ok: false, message: 'Too many tries — please wait a few minutes' }
+  const category = await getCategory(String(input.category ?? ''))
+  const plan = category ? await getPlan(category.plan) : null
+  const quote = plan?.billing === 'listing' ? quoteListing(plan.durations, String(input.startDate), String(input.endDate)) : null
+  if (!plan || !quote) return { ok: false, message: 'Choose valid dates first' }
+  if (quote.amount <= 0) return { ok: false, message: 'This ad is already free' }
+  const promo = await priceWithPromotionCode(code, quote.amount, plan.currency || 'CAD').catch(() => null)
+  return promo ? { ok: true, total: promo.total, label: promo.label } : { ok: false, message: 'That promo code isn’t valid or has expired' }
 }
