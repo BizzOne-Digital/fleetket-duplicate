@@ -4,12 +4,13 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { db, getCategories, getPlan } from '@/lib/content'
+import { db, getCategories, getPlan, getPlans } from '@/lib/content'
 import { notifyAdmin } from '@/lib/listing-service'
-import type { FormState } from '@/lib/schemas'
-import { CURRENT_MEMBERSHIP, claimPromoCode, membershipRow } from '@/lib/membership'
+import { flattenErrors, taskerProfileSchema, type FormState } from '@/lib/schemas'
+import { geocode } from '@/lib/geocode'
+import { CURRENT_MEMBERSHIP, claimPromoCode, membershipRow, syncMembership } from '@/lib/membership'
 import { Subscriber, User } from '@/lib/models'
-import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, getSubscription, isStripeConfigured, listSubscriptions, setSubscriptionQuantity } from '@/lib/stripe'
+import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, isStripeConfigured, listSubscriptions, setSubscriptionQuantity, type StripeSubscription } from '@/lib/stripe'
 
 const DAY = 86_400
 
@@ -103,9 +104,29 @@ export async function startMembership(form: FormData) {
 }
 
 /**
+ * The tasker's live membership, asked of Stripe directly — the webhook may not have recorded it yet (or at all), and
+ * trusting only our copy let new categories be added without being billed. A membership found this way is saved.
+ */
+async function liveMembership(userId: string, customerId: string): Promise<StripeSubscription | null> {
+  if (!isStripeConfigured || !customerId) return null
+  let subs: StripeSubscription[]
+  try {
+    subs = await listSubscriptions(customerId)
+  } catch (err) {
+    if (/No such customer/.test(String(err))) return null // saved under another Stripe key: no membership here
+    throw err
+  }
+  const live = subs.find((s) => CURRENT_MEMBERSHIP.includes(s.status) && s.metadata?.userId === userId) ?? null
+  if (live) await syncMembership(live)
+  return live
+}
+
+/**
  * A tasker adds or removes services at any time. Each category is its own Subscriber row: kept categories only get
  * their services updated, new categories get a new row (same approval and membership as the rest), emptied categories
- * are removed. A live membership keeps running — Stripe only changes how many categories it bills (prorated).
+ * are removed. With a live membership, Stripe bills the new number of categories straight away (prorated) and nothing
+ * is saved unless that payment goes through. Without one, the services are saved and the tasker goes to Checkout to
+ * pay for all their categories — added categories are never free.
  */
 export async function updateSkills(_prev: FormState, form: FormData): Promise<FormState> {
   const { user, row } = await taskerMembership()
@@ -125,22 +146,32 @@ export async function updateSkills(_prev: FormState, form: FormData): Promise<Fo
   if (!(await lockCheckout(user.id))) return { ok: false, message: 'Another change is still being saved — please try again in a moment.' }
   let billed = 0
   let changed = false
+  let trialEnds = ''
+  let planSlug = row.membershipPlan
+  let added: [string, string[]][] = []
   try {
     const rows = await Subscriber.find({ userId: user.id }).lean()
     const before = new Set(rows.map((r) => r.category))
+    added = [...byCategory].filter(([cat]) => !before.has(cat))
     // Stripe first, so the bill never lags behind what the tasker is listed for.
-    if (row.stripeSubscriptionId && CURRENT_MEMBERSHIP.includes(row.membershipStatus)) {
-      const sub = await getSubscription(row.stripeSubscriptionId)
-      if (CURRENT_MEMBERSHIP.includes(sub.status) && (sub.items?.data?.[0]?.quantity ?? 1) !== byCategory.size) {
-        await setSubscriptionQuantity(sub, byCategory.size)
+    const sub = await liveMembership(user.id, row.stripeCustomerId)
+    if (sub) {
+      if ((sub.items?.data?.[0]?.quantity ?? 1) !== byCategory.size) {
+        const updated = await setSubscriptionQuantity(sub, byCategory.size)
+        if (updated.pending_update) {
+          return { ok: false, message: 'Your card was declined for the added categories, so nothing was changed. Update your card with “Manage payment or cancel”, then try again.' }
+        }
         changed = true
       }
-      if (CURRENT_MEMBERSHIP.includes(sub.status)) billed = byCategory.size
+      billed = byCategory.size
+      planSlug = sub.metadata?.plan || planSlug
+      const periodEnd = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end
+      if (sub.status === 'trialing' && periodEnd) trialEnds = new Date(periodEnd * 1000).toISOString().slice(0, 10)
     }
     await Promise.all(rows.filter((r) => byCategory.has(r.category)).map((r) => Subscriber.updateOne({ _id: r._id }, { $set: { subServices: byCategory.get(r.category) } })))
     await Subscriber.deleteMany({ userId: user.id, category: { $nin: [...byCategory.keys()] } })
-    const template = rows.find((r) => r.stripeSubscriptionId) ?? rows[0]
-    const added = [...byCategory].filter(([cat]) => !before.has(cat))
+    // Re-read: liveMembership may just have saved the membership onto the rows.
+    const template = (await Subscriber.findOne({ userId: user.id }).sort('-stripeSubscriptionId').lean()) ?? rows[0]
     if (template && added.length) {
       const { _id, category: _c, subServices: _s, createdAt: _a, updatedAt: _u, ...shared } = template as typeof template & { createdAt?: Date; updatedAt?: Date }
       await Subscriber.insertMany(added.map(([category, subServices]) => ({ ...shared, category, subServices, ...(billed && { billedCategories: billed }) })))
@@ -157,16 +188,30 @@ export async function updateSkills(_prev: FormState, form: FormData): Promise<Fo
     const c = categories.find((x) => x.slug === cat)!
     return `${c.name}: ${subs.map((s) => c.subServices.find((x) => x.slug === s)?.name ?? s).join(', ')}`
   })
-  const plan = billed ? await getPlan(row.membershipPlan) : null
+  const plan = billed ? await getPlan(planSlug) : null
   const price = plan ? `$${(plan.amount * billed).toFixed(2)}${plan.currency ? ` ${plan.currency}` : ''} / ${plan.interval}` : ''
   await notifyAdmin(`Tasker updated their services — ${user.name}`, { Tasker: user.name, Email: user.email, Services: names.join(' | '), Billing: billed ? `${billed} categor${billed === 1 ? 'y' : 'ies'} — ${price}` : 'no active membership' })
   revalidatePath('/', 'layout')
+
+  // No live membership and new categories: payment comes next — straight to Stripe Checkout for all categories.
+  if (!billed && added.length && isStripeConfigured) {
+    const memberPlan = (await getPlan(planSlug)) ?? (await getPlans()).find((p) => p.billing === 'subscription' && p.payer === 'provider' && p.amount > 0)
+    if (memberPlan) {
+      const checkout = new FormData()
+      checkout.set('plan', memberPlan.slug)
+      await startMembership(checkout) // redirects to Stripe
+    }
+  }
+
+  const count = `${billed} categor${billed === 1 ? 'y' : 'ies'}`
   return {
     ok: true,
     message: billed
-      ? changed
-        ? `Saved. You’re now billed for ${billed} categor${billed === 1 ? 'y' : 'ies'} (${price}); the difference is prorated on your next invoice. Your membership continues as normal.`
-        : `Saved — your bill is unchanged (${billed} categor${billed === 1 ? 'y' : 'ies'}, ${price}).`
+      ? trialEnds
+        ? `Saved. You’re in your free period — from ${trialEnds} you’ll be billed for ${count} (${price}).`
+        : changed
+          ? `Saved. You’re now billed for ${count} (${price}); the prorated difference has been charged to your card. Your membership continues as normal.`
+          : `Saved — your bill is unchanged (${count}, ${price}).`
       : 'Saved — your services are updated.',
   }
 }
@@ -200,4 +245,25 @@ export async function openBillingPortal() {
     console.error('[membership] portal failed', err)
   }
   redirect(url ?? '/account?membership=error')
+}
+
+/**
+ * A tasker updates their name, phone and address. Every category row gets the same details, and the map pin is
+ * re-placed from the new address (a failed lookup keeps the old pin).
+ */
+export async function updateProfile(_prev: FormState, form: FormData): Promise<FormState> {
+  const { user } = await taskerMembership()
+  const parsed = taskerProfileSchema.safeParse(Object.fromEntries(form))
+  if (!parsed.success) return { ok: false, message: 'Please check the highlighted fields.', errors: flattenErrors(parsed.error) }
+  const data = parsed.data
+  try {
+    const location = await geocode(data)
+    await User.updateOne({ _id: user.id }, { $set: data })
+    await Subscriber.updateMany({ userId: user.id }, { $set: { ...data, contactName: data.name, ...(location && { location }) } })
+  } catch (err) {
+    console.error('[tasker] profile update failed', err)
+    return { ok: false, message: 'We couldn’t save your details just now. Please try again, or contact us.' }
+  }
+  revalidatePath('/', 'layout')
+  return { ok: true, message: 'Saved — your details are updated.' }
 }

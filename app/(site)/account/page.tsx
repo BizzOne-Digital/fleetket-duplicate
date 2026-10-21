@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { closeListing, logout } from '@/app/actions/public'
-import { SkillsEditor } from '@/components/forms/live-forms'
+import { ProfileEditor, SkillsEditor } from '@/components/forms/live-forms'
 import { openBillingPortal, startMembership } from '@/app/actions/membership'
 import { requireUser } from '@/lib/auth'
 import { db, formatPlanPrice, getCategories, getPlans } from '@/lib/content'
@@ -129,6 +129,15 @@ export default async function AccountPage({ searchParams }: PageProps<'/account'
                 </ul>
               </>
             )}
+          </div>
+        )}
+
+        {provider && member && (
+          <div className="mt-6 rounded bg-panel p-5">
+            <h2 className="mb-3 text-[1.25rem] font-bold text-ink">Your details</h2>
+            <ProfileEditor
+              profile={{ name: member.name ?? user.name, phone: member.phone ?? '', address: member.address ?? '', city: member.city ?? '', region: member.region ?? '', postalCode: member.postalCode ?? '', country: member.country ?? '' }}
+            />
           </div>
         )}
 

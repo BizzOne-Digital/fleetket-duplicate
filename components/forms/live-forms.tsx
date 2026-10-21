@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { checkAdPromoCode, login, registerTasker, submitContact, submitListing, submitServiceRequest, updateListing } from '@/app/actions/public'
-import { updateSkills } from '@/app/actions/membership'
+import { updateProfile, updateSkills } from '@/app/actions/membership'
 import { CheckboxField, FormStatus, Honeypot, SelectField, SubmitButton, TextAreaField, TextField } from '@/components/forms/fields'
 import { useFormAction } from '@/components/forms/use-form-action'
 import { COUNTRIES, PHONE_OPTIONAL_AD_CATEGORIES, WEEKDAYS } from '@/lib/constants'
@@ -89,10 +89,10 @@ function ProfileFields({ errors }: { errors: Record<string, string> }) {
         <TextField label="Confirm Password" name="confirmPassword" type="password" required autoComplete="new-password" error={errors.confirmPassword} />
       </div>
       <TextField label="Mobile Number" name="phone" type="tel" autoComplete="tel" className="sm:max-w-[calc(50%-0.375rem)]" error={errors.phone} />
-      <TextField label="Street address" name="address" autoComplete="street-address" error={errors.address} />
+      <TextField label="Street address" name="address" required autoComplete="street-address" error={errors.address} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SelectField label="Country" name="country" options={COUNTRIES} placeholder="Select country" autoComplete="country-name" error={errors.country} />
-        <TextField label="City" name="city" autoComplete="address-level2" error={errors.city} />
+        <TextField label="City" name="city" required autoComplete="address-level2" error={errors.city} />
         <TextField label="Province / State" name="region" autoComplete="address-level1" error={errors.region} />
         <TextField label="Postal Code" name="postalCode" autoComplete="postal-code" error={errors.postalCode} />
       </div>
@@ -391,6 +391,32 @@ export function SkillsEditor({ groups, initial, price }: { groups: SkillGroup[];
       <FormStatus state={state} />
       <div>
         <SubmitButton pending={pending} pendingLabel="Saving…" className="px-6 py-2.5">Save my services</SubmitButton>
+      </div>
+    </form>
+  )
+}
+
+export type TaskerProfile = { name: string; phone: string; address: string; city: string; region: string; postalCode: string; country: string }
+
+/** Account page: a tasker updates their contact details and address (all their categories, and their map pin). */
+export function ProfileEditor({ profile }: { profile: TaskerProfile }) {
+  const { state, pending, onSubmit, formRef, errors } = useFormAction(updateProfile)
+  return (
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="grid gap-3" aria-busy={pending}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField label="Full Name" name="name" required autoComplete="name" defaultValue={profile.name} error={errors.name} />
+        <TextField label="Mobile Number" name="phone" type="tel" autoComplete="tel" defaultValue={profile.phone} error={errors.phone} />
+      </div>
+      <TextField label="Street address" name="address" required autoComplete="street-address" defaultValue={profile.address} error={errors.address} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SelectField label="Country" name="country" options={COUNTRIES} placeholder="Select country" autoComplete="country-name" defaultValue={profile.country} error={errors.country} />
+        <TextField label="City" name="city" required autoComplete="address-level2" defaultValue={profile.city} error={errors.city} />
+        <TextField label="Province / State" name="region" autoComplete="address-level1" defaultValue={profile.region} error={errors.region} />
+        <TextField label="Postal Code" name="postalCode" autoComplete="postal-code" defaultValue={profile.postalCode} error={errors.postalCode} />
+      </div>
+      <FormStatus state={state} />
+      <div>
+        <SubmitButton pending={pending} pendingLabel="Saving…" className="px-6 py-2.5">Save my details</SubmitButton>
       </div>
     </form>
   )

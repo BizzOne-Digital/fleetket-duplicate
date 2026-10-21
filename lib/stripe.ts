@@ -48,6 +48,8 @@ export type StripeSubscription = {
   /** Older API versions put the period on the subscription, newer ones on its items. */
   current_period_end?: number
   items?: { data: { id?: string; quantity?: number; current_period_end?: number }[] }
+  /** Set when an update is waiting on a payment that hasn't gone through (payment_behavior pending_if_incomplete). */
+  pending_update?: unknown
   metadata: { userId?: string; plan?: string }
 }
 
@@ -88,15 +90,16 @@ export function createSubscriptionCheckout(o: {
 
 /**
  * Bills a different number of categories on the same subscription — nothing is cancelled or restarted.
- * Stripe prorates: an added category is charged (and a removed one credited) for the rest of the current period
- * on the next invoice.
+ * Stripe prorates and invoices straight away: an added category is charged to the card on file now for the rest of
+ * the current period (a removed one is credited). If that payment fails, Stripe leaves the quantity unchanged and
+ * returns `pending_update` — the caller must then not add the categories.
  */
 export function setSubscriptionQuantity(sub: StripeSubscription, quantity: number) {
   const item = sub.items?.data?.[0]
   if (!item?.id) throw new Error(`Subscription ${sub.id} has no item to update`)
   return stripe<StripeSubscription>(
     `subscriptions/${encodeURIComponent(sub.id)}`,
-    new URLSearchParams({ 'items[0][id]': item.id, 'items[0][quantity]': String(Math.max(1, quantity)), proration_behavior: 'create_prorations' }),
+    new URLSearchParams({ 'items[0][id]': item.id, 'items[0][quantity]': String(Math.max(1, quantity)), proration_behavior: 'always_invoice', payment_behavior: 'pending_if_incomplete' }),
   )
 }
 

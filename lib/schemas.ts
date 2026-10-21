@@ -56,12 +56,19 @@ const profile = {
 const passwordsMatch = (v: { password: string; confirmPassword: string }) => v.password === v.confirmPassword
 const mismatch = { message: 'Passwords do not match', path: ['confirmPassword'] }
 
+// Taskers are placed on the map from their address, so street and city are required.
+const taskerAddress = {
+  address: z.string().trim().min(5, 'Please enter your street address').max(200),
+  city: z.string().trim().min(2, 'Please enter your city').max(80),
+}
+
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').or(z.literal(''))
 
 /** Become A Tasker — provider account with skills and weekly availability. */
 export const taskerSchema = z
   .object({
     ...profile,
+    ...taskerAddress,
     promoCode: text(40).transform((v) => v.toUpperCase()),
     /** “categorySlug/subServiceSlug” pairs. */
     skills: z.array(z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/)).min(1, 'Choose at least one skill').max(30),
@@ -70,6 +77,16 @@ export const taskerSchema = z
       .length(7),
   })
   .refine(passwordsMatch, mismatch)
+
+/** Account page: a tasker updates their contact details and address (email and password stay as they are). */
+export const taskerProfileSchema = z.object({
+  name,
+  phone,
+  ...taskerAddress,
+  country: profile.country,
+  region: profile.region,
+  postalCode: profile.postalCode,
+})
 
 const isoDate = (msg: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg)
 
