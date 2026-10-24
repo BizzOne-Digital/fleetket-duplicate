@@ -11,7 +11,8 @@ export const runtime = 'nodejs'
  * and cancellations. Subscriptions are re-fetched, so events arriving out of order can't leave a stale status.
  */
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  // Pasted secrets often carry a stray space, newline or quotes — any of them makes every signature check fail.
+  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim().replace(/^["']|["']$/g, '')
   if (!secret) return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
   const event = verifyWebhook(await req.text(), req.headers.get('stripe-signature'), secret)
   if (!event) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
