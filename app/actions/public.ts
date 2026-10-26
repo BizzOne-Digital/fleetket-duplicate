@@ -12,6 +12,7 @@ import { createSession, destroySession, getCurrentUser, hashPassword, requireUse
 import { adminListingUrl, notifyAdmin } from '@/lib/listing-service'
 import { formatMoney, maxListingDays, quoteListing, todayISO } from '@/lib/listings'
 import { rateLimited } from '@/lib/rate-limit'
+import { sendEmail } from '@/lib/email'
 import { createCheckoutSession, isStripeConfigured, priceWithPromotionCode } from '@/lib/stripe'
 import { storeImage } from '@/lib/uploads'
 import { geocode } from '@/lib/geocode'
@@ -66,23 +67,28 @@ export async function submitServiceRequest(_prev: FormState, form: FormData): Pr
   const sub = category.subServices.find((s) => s.slug === subService)
   const label = sub ? `${category.name} — ${sub.name}` : category.name
   let taskers = ''
+  let forCustomer = ''
   try {
     await db()
     const ids = providers.filter((id) => isValidObjectId(id))
     const chosen = ids.length
       ? await Subscriber.find({ _id: { $in: ids }, category: category.slug }).select('name contactName phone email address city region postalCode country').lean()
       : []
-    // The requested taskers' contact details, for the admin email and the lead — what the team passes on to the customer.
-    taskers = chosen
-      .map((t, i) =>
-        [
-          `${i + 1}. ${t.name}${t.contactName && t.contactName !== t.name ? ` (contact: ${t.contactName})` : ''}`,
-          `   Phone: ${t.phone || 'not provided'}`,
-          `   Email: ${t.email || 'not provided'}`,
-          `   Address: ${[t.address, t.city, [t.region, t.postalCode].filter(Boolean).join(' '), t.country].filter(Boolean).join(', ') || 'not provided'}`,
-        ].join('\n'),
-      )
-      .join('\n\n')
+    // The requested taskers' contact details: in full for the admin email and the lead; without the street address
+    // and postal code (private) for the customer's copy.
+    const list = (area: (t: (typeof chosen)[number]) => string) =>
+      chosen
+        .map((t, i) =>
+          [
+            `${i + 1}. ${t.name}${t.contactName && t.contactName !== t.name ? ` (contact: ${t.contactName})` : ''}`,
+            `   Phone: ${t.phone || 'not provided'}`,
+            `   Email: ${t.email || 'not provided'}`,
+            area(t),
+          ].join('\n'),
+        )
+        .join('\n\n')
+    taskers = list((t) => `   Address: ${[t.address, t.city, [t.region, t.postalCode].filter(Boolean).join(' '), t.country].filter(Boolean).join(', ') || 'not provided'}`)
+    forCustomer = list((t) => `   Area: ${[t.city, t.region].filter(Boolean).join(', ') || 'not provided'}`)
     await Lead.create({
       ...data,
       category: label,
@@ -102,7 +108,28 @@ export async function submitServiceRequest(_prev: FormState, form: FormData): Pr
     Page: data.sourcePage,
     'Requested taskers': taskers ? `\n${taskers}` : 'none selected',
   })
-  return { ok: true, message: 'Request sent. We’ll be in touch by email with the tasker details for your job.' }
+  if (!forCustomer) return { ok: true, message: 'Request sent. We’ll be in touch by email about your job.' }
+
+  // The customer gets the chosen taskers' details straight away, to contact them directly.
+  const { sent } = await sendEmail({
+    to: data.email,
+    subject: `Your Fleeket tasker details — ${label}`,
+    text: [
+      `Hi ${data.name},`,
+      '',
+      `Thank you for your request for ${label}. Here are the details of the tasker(s) you chose — please contact them directly to arrange your job:`,
+      '',
+      forCustomer,
+      '',
+      'Need help? Just reply to this email.',
+      '',
+      'Thank you for using Fleeket.',
+    ].join('\n'),
+  })
+  return {
+    ok: true,
+    message: sent ? `Request sent. We’ve emailed the tasker details to ${data.email}.` : 'Request sent. We’ll be in touch by email with the tasker details for your job.',
+  }
 }
 
 const safeNext = (next: string | undefined, role: Role) => {
