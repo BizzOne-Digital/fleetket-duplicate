@@ -8,7 +8,7 @@ import { db, getCategories, getPlan, getPlans } from '@/lib/content'
 import { notifyAdmin } from '@/lib/listing-service'
 import { flattenErrors, taskerProfileSchema, type FormState } from '@/lib/schemas'
 import { geocode } from '@/lib/geocode'
-import { CURRENT_MEMBERSHIP, claimPromoCode, membershipRow, syncMembership } from '@/lib/membership'
+import { CURRENT_MEMBERSHIP, alignTaskerRows, claimPromoCode, membershipRow, syncMembership } from '@/lib/membership'
 import { Subscriber, User } from '@/lib/models'
 import { createCustomer, createPortalSession, createSubscriptionCheckout, expireOpenCheckouts, isStripeConfigured, listSubscriptions, setSubscriptionQuantity, type StripeSubscription } from '@/lib/stripe'
 
@@ -177,6 +177,8 @@ export async function updateSkills(_prev: FormState, form: FormData): Promise<Fo
       await Subscriber.insertMany(added.map(([category, subServices]) => ({ ...shared, category, subServices, ...(billed && { billedCategories: billed }) })))
     }
     if (billed) await Subscriber.updateMany({ userId: user.id }, { $set: { billedCategories: billed } })
+    // Added categories show wherever the rest of the account shows: same approval, visibility and map pin.
+    await alignTaskerRows(user.id)
   } catch (err) {
     console.error('[membership] skills update failed', err)
     return { ok: false, message: 'We couldn’t save your services just now. Please try again, or contact us.' }

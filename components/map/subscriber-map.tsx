@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type * as Leaflet from 'leaflet'
 import { baseMap, DEFAULT_VIEW, loadLeaflet, pin } from '@/components/map/leaflet'
+import { groupByPin } from '@/lib/tasker-rows'
 import { cn } from '@/lib/utils'
 
 export type MapPoint = {
@@ -21,10 +22,20 @@ export type MapPoint = {
   href?: string
 }
 
-/** Builds popup content as DOM nodes — subscriber names are user data and never go through innerHTML. */
-function popup(p: MapPoint) {
+/**
+ * Builds popup content as DOM nodes — subscriber names are user data and never go through innerHTML.
+ * One pin can hold several points (a tasker's categories share an address), each listed in turn.
+ */
+function popup(group: MapPoint[]) {
   const el = document.createElement('div')
-  el.style.cssText = 'font:14px/1.45 var(--font-sans),system-ui,sans-serif;color:#212529;min-width:160px'
+  el.style.cssText = 'font:14px/1.45 var(--font-sans),system-ui,sans-serif;color:#212529;min-width:160px;max-height:260px;overflow-y:auto'
+  group.forEach((p, i) => el.append(entry(p, i > 0)))
+  return el
+}
+
+function entry(p: MapPoint, divider: boolean) {
+  const el = document.createElement('div')
+  if (divider) el.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #dee2e6'
   const title = document.createElement(p.href ? 'a' : 'strong')
   title.textContent = p.name
   title.style.cssText = 'display:block;font-weight:600;font-size:15px;color:#333'
@@ -102,9 +113,10 @@ export function SubscriberMap({
     const lib = L.current
     if (!ready || !lib || !map.current || !layer.current) return
     layer.current.clearLayers()
-    for (const p of visible) {
-      lib.marker([p.lat, p.lng], { icon: pin(lib, p.status && muted.includes(p.status) ? 'muted' : 'lime'), title: p.name, alt: p.name })
-        .bindPopup(popup(p))
+    for (const group of groupByPin(visible)) {
+      const p = group[0]
+      lib.marker([p.lat, p.lng], { icon: pin(lib, group.every((g) => g.status && muted.includes(g.status)) ? 'muted' : 'lime'), title: p.name, alt: p.name })
+        .bindPopup(popup(group))
         .addTo(layer.current)
     }
     if (visible.length) map.current.fitBounds(lib.latLngBounds(visible.map((p) => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 11 })

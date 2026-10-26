@@ -44,7 +44,7 @@ export function ServiceRequestForm({ category, subService, providers }: { catego
       <input type="hidden" name="subService" value={subService} />
       {providers.length > 0 && (
         <fieldset className="grid gap-2">
-          <legend className="mb-1 text-[0.8125rem] font-semibold text-ink">Choose the taskers you’d like to hear from</legend>
+          <legend className="mb-1 text-[0.8125rem] font-semibold text-ink">Choose the tasker you’d like to contact</legend>
           {providers.map((p) => (
             <label key={p.id} className="flex cursor-pointer items-center gap-3 rounded border border-[#dee2e6] bg-white px-3 py-2.5 text-[0.8125rem] has-[:checked]:border-brand has-[:checked]:bg-brand/5">
               <input type="checkbox" name="providers" value={p.id} defaultChecked className="size-4 accent-[var(--color-brand)]" />

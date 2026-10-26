@@ -45,7 +45,7 @@ export function LiveHeader() {
               </Link>
             ))}
             <Link href="/become-a-tasker" className="ml-2 rounded bg-brand px-4 py-2 text-[0.9375rem] text-white shadow-sm transition-colors hover:bg-brand-light">
-              Become a Tasker
+              Subscribe
             </Link>
             <Link href={account.href} className="ml-4 px-2 text-[0.9375rem] text-brand hover:text-brand-dark">
               {account.label}
@@ -66,7 +66,7 @@ export function LiveHeader() {
                 </li>
               ))}
               <li className="grid pt-2">
-                <Link href="/become-a-tasker" className="rounded bg-brand px-3 py-3 text-center text-white">Become a Tasker</Link>
+                <Link href="/become-a-tasker" className="rounded bg-brand px-3 py-3 text-center text-white">Subscribe</Link>
               </li>
               <li>
                 <Link href={account.href} className="block rounded px-2 py-3 text-base text-brand hover:bg-panel">{account.label}</Link>

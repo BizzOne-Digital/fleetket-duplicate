@@ -6,6 +6,7 @@ import { notifyAdmin } from './listing-service'
 import { todayISO } from './listings'
 import { PromoCode, Subscriber } from './models'
 import { cancelSubscription, getSubscription, type StripeSubscription } from './stripe'
+import { sharedVisibility } from './tasker-rows'
 
 /** Stripe subscription status → the tasker's listing status (pending taskers stay pending until an admin approves them). */
 const LISTING_STATUS: Record<string, string> = {
@@ -56,6 +57,12 @@ type MembershipRow = { name: string; email: string; stripeCustomerId: string; st
 export const membershipRow = (userId: string) =>
   Subscriber.findOne({ userId }).sort('-stripeCustomerId -stripeSubscriptionId').lean<MembershipRow>()
 
+/** Gives every category row of a tasker the same status, visibility and map pin (lib/tasker-rows.ts). */
+export async function alignTaskerRows(userId: string) {
+  const rows = await Subscriber.find({ userId }).select('status published location').lean()
+  if (rows.length > 1) await Subscriber.updateMany({ userId }, { $set: sharedVisibility(rows) })
+}
+
 /**
  * Copies a Stripe subscription onto every Subscriber row of the tasker who owns it (metadata.userId).
  * Called only from the Stripe webhook, with the subscription re-fetched from Stripe, so the order events arrive in
@@ -104,6 +111,7 @@ export async function syncMembership(sub: StripeSubscription) {
   )
   const status = LISTING_STATUS[sub.status]
   if (status) await Subscriber.updateMany({ userId, status: { $ne: 'pending' } }, { $set: { status } })
+  await alignTaskerRows(userId)
   revalidatePath('/', 'layout')
 
   // Only the delivery that actually changed something emails the admin — repeats and duplicates are no-ops.

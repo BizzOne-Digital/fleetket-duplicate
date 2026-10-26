@@ -66,9 +66,9 @@ export async function saveResource(key: string, id: string | null, input: unknow
     const before = await model.findById(id).lean()
     if (!before) return bad('Item not found')
     await model.updateOne({ _id: id }, { $set: data })
-    // Approving a tasker (pending → any other status) approves their other skill rows too — the account shows them all.
-    if (key === 'subscribers' && before.status === 'pending' && data.status !== 'pending' && before.userId) {
-      await Subscriber.updateMany({ userId: before.userId, status: 'pending' }, { $set: { status: data.status } })
+    // One tasker, one account: status, visibility and map pin set on one category row apply to all their rows.
+    if (key === 'subscribers' && before.userId) {
+      await Subscriber.updateMany({ userId: before.userId, _id: { $ne: id } }, { $set: { status: data.status, published: data.published, ...(data.location ? { location: data.location } : {}) } })
     }
     await deleteReplacedUploads(before, data)
     // Approving an ad (e.g. a free ad) tells the poster it's live.
@@ -98,10 +98,10 @@ export async function deleteResources(key: string, ids: string[]): Promise<Actio
 export async function setPublished(key: string, ids: string[], published: boolean): Promise<ActionResult> {
   if (!isResourceKey(key)) return bad('Unknown resource')
   await guard()
-  await RESOURCE_MODELS[key].updateMany({ _id: { $in: ids.filter(validId) } }, { $set: { published } })
+  // A tasker is shown or hidden as a whole: their other category rows follow.
+  const userIds = key === 'subscribers' ? await Subscriber.distinct('userId', { _id: { $in: ids.filter(validId) }, userId: { $ne: null } }) : []
+  await RESOURCE_MODELS[key].updateMany({ $or: [{ _id: { $in: ids.filter(validId) } }, ...(userIds.length ? [{ userId: { $in: userIds } }] : [])] }, { $set: { published } })
   // Publishing a pending tasker sign-up approves it too — otherwise it stays off the site and map.
-  // The whole tasker is approved: their other skill rows too.
-  const userIds = key === 'subscribers' && published ? await Subscriber.distinct('userId', { _id: { $in: ids.filter(validId) }, userId: { $ne: null } }) : []
   const approved = key === 'subscribers' && published ? (await Subscriber.updateMany({ $or: [{ _id: { $in: ids.filter(validId) } }, { userId: { $in: userIds } }], status: 'pending' }, { $set: { status: 'active' } })).modifiedCount : 0
   refreshSite()
   return { ok: true, message: published ? (approved ? `Published — ${approved} pending sign-up${approved === 1 ? '' : 's'} approved` : 'Published') : 'Hidden from the site' }
