@@ -99,7 +99,6 @@ export async function submitServiceRequest(_prev: FormState, form: FormData): Pr
     Email: data.email,
     Phone: data.phone,
     Service: label,
-    Message: data.message,
     Page: data.sourcePage,
     'Requested taskers': taskers ? `\n${taskers}` : 'none selected',
   })

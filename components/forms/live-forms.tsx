@@ -59,7 +59,6 @@ export function ServiceRequestForm({ category, subService, providers }: { catego
         <TextField label="Email Address" name="email" type="email" required autoComplete="email" error={errors.email} />
       </div>
       <TextField label="Mobile Number" name="phone" type="tel" autoComplete="tel" error={errors.phone} />
-      <TextAreaField label="What do you need?" name="message" required rows={4} error={errors.message} />
       <FormStatus state={state} />
       <div className="flex items-center gap-6">
         <SubmitButton pending={pending} pendingLabel="Sending…">Confirm &amp; Send</SubmitButton>

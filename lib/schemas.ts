@@ -29,7 +29,6 @@ export const serviceRequestSchema = z.object({
   category: z.string().trim().min(1).max(80),
   subService: text(80),
   providers: z.array(z.string().max(40)).max(50).default([]),
-  message: z.string().trim().min(10, 'Please describe what you need (at least 10 characters)').max(3000),
   sourcePage: text(200),
   website: honeypot,
 })
